@@ -3,8 +3,8 @@
     <type>com.microchip.mplab.nbide.embedded.makeproject</type>
     <configuration>
         <data xmlns="http://www.netbeans.org/ns/make-project/1">
-            <name>Milestone1</name>
-            <creation-uuid>fb3f2040-0a86-4951-afb1-44e1c455530b</creation-uuid>
+            <name>Milestone2</name>
+            <creation-uuid>9f677283-f3ac-4db8-a5a9-c87193a4fceb</creation-uuid>
             <make-project-type>0</make-project-type>
             <c-extensions>c</c-extensions>
             <cpp-extensions/>
