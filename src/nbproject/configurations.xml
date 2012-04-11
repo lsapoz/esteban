@@ -4,7 +4,9 @@
     <logicalFolder name="HeaderFiles"
                    displayName="Header Files"
                    projectFiles="true">
+      <itemPath>data.h</itemPath>
       <itemPath>LCD.h</itemPath>
+      <itemPath>library.h</itemPath>
       <itemPath>NU32.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LibraryFiles"
@@ -23,8 +25,9 @@
                    displayName="Source Files"
                    projectFiles="true">
       <itemPath>LCD.c</itemPath>
+      <itemPath>library.c</itemPath>
+      <itemPath>main.c</itemPath>
       <itemPath>NU32.c</itemPath>
-      <itemPath>milestone2.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
