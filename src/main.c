@@ -13,49 +13,59 @@ int main(void)
 
     // initalize global variables
     time = 0;
+    drive = 0;
+    terminalCounts1 = 0;
+    terminalDegrees = 0;
+    Kp = 324;
+    Kd = 502;
+    Ki = 53;
+    K0 = 100;
 
     // init everything for the LCD
     setupLCD();
     LCDClear(0); // clear the LCD in case it still says something
 
     // turn on analog input and the H-Bridge
-    initAnalogInput(); // in this case B0
+    initAnalogInput();
     initHBridge();
 
     // initialize the SPI communication to the dsPIC
     initEncoderSPI();
-    getEncoder(TRUE);
-    getEncoder(TRUE);  // call twice to set up function to account for rollover
+    getEncoder1(TRUE);
+    getEncoder1(TRUE);  // call twice to set up function to account for rollover
+    getEncoder2(TRUE);
+    getEncoder2(TRUE);  // call twice to set up function to account for rollover
     
     // setup timers
     initCoreTimer();
     initTimer4Interrupt();
+    initTimer5Interrupt();
  
+    // initalize digital out pins
+    initDigitalOut();
+
+    // initalize change notification
+    initChangeNotification();
+
     // print to the LCD
-    sprintf(LCD_Out_Buffer,"Esteban CM");
+    sprintf(LCD_Out_Buffer,"Esteban MM");
     LCDWriteString(LCD_Out_Buffer, 1, 1);
 
-    
     // initialize UARTS and interrupts
     NU32_EnableUART1Interrupt();
     NU32_Initialize();
- 
 
-    sprintf(NU32_RS232OutBuffer,"Esteban CM\r\n");
+    // print to the computer
+    sprintf(NU32_RS232OutBuffer,"Esteban MM\r\n");
     NU32_WriteUART1(NU32_RS232OutBuffer);
 
-    TRISDbits.TRISD13 = 0;
-    CS1 = 0;
-    setMotorSpeed(MAX_PWM);
-    //int test = 1000;
-    // infinite loop
+    setMotorSpeed(MAX_PWM,MAX_PWM);
+    DIR1 = 0;
+    DIR2 = 0;
+
+    //setMotorSpeed(MAX_PWM);
     while(1) {
-//        if (!NU32USER){
-//            test++;
-//            SetDCOC4PWM(test);
-//            sprintf(LCD_Out_Buffer,"%4d", test);
-//            LCDWriteString(LCD_Out_Buffer, 2, 1);
-//        }
+
     }
     return 0;
 }
@@ -67,8 +77,8 @@ void __ISR(_CORE_TIMER_VECTOR, IPL7SRS) CoreTimerISR(void)
     // increment time by one every second
     time++;
 
-    // toggle led2 every 1 seconds
-    if (time%1 == 0)
+    // toggle led2 every second
+    if (time%100 == 0)
         NU32LED2 = !NU32LED2;
 
     WriteCoreTimer(0);              // set core timer counter to 0
@@ -76,41 +86,170 @@ void __ISR(_CORE_TIMER_VECTOR, IPL7SRS) CoreTimerISR(void)
     INTClearFlag(_CORE_TIMER_IRQ);  // clear the interrupt flag
 }
 
-// Timer4 ISR - for reading encoder at 10Hz
-void __ISR(_TIMER_4_VECTOR, ipl3) UpdateEncoder(void)
+// Timer4 ISR - for reading encoder at 250Hz
+void __ISR(_TIMER_4_VECTOR, ipl3) Timer4ISR(void)
 {
-    position = getEncoder(FALSE);
-    if (position >= MM_TO_COUNTS(20*283))
-        setMotorSpeed(0);
-    //int ptON, ptOFF,j = 0;
-    
-//    CS1 = 0;
-//    for (j=0;j<2500;j++){};
-//    ptOFF = ReadADC10(0);
-//    CS1 = 1;
-//    for (j=0;j<2500;j++){};
-//    ptON = ReadADC10(0);
+    // initalize all static variables
+    static long long oldPos1 = 0;
+    static long long oldPos2 = 0;
+    static float vel1 = 0;
+    static float vel2 = 0;
+    static float e1 = 0;
+    static float e2 = 0;
+    static float e1Old = 0;
+    static float e2Old = 0;
+    static float e_int = 0;
+    static float e_dif1 = 0;
+    static float e_dif2 = 0;
+    static int update1 = 0;
+    static int update2 = 0;
+    int reset = 0;
 
-    static int count = 0;
-    if (count == 62) {
-        char message[100];
-//        sprintf(LCD_Out_Buffer,"Dist=%5.2f mm", (float) COUNTS_TO_MM(position));
-//        LCDWriteString(LCD_Out_Buffer, 2, 1);
-//        sprintf(LCD_Out_Buffer,"Dist=%5.2f in", (float) MM_TO_IN(COUNTS_TO_MM(position)));
-//        LCDWriteString(LCD_Out_Buffer, 1, 1);
-        sprintf(message, "encoder: %ld (counts)\r\n", position);
-        NU32_WriteUART1(message);
+    // if motors are on
+    if (drive != 0) {
+        // make all encoder readings positive
+        if (drive == 1) {                       // forward
+            position1 = getEncoder1(FALSE);
+            position2 = getEncoder2(FALSE);
+        } else if (drive == 2) {                // backward
+            position1 = -1*getEncoder1(FALSE);
+            position2 = -1*getEncoder2(FALSE);
+        } else if (drive == 3) {                // CCW
+            position1 = getEncoder1(FALSE);
+            position2 = -1*getEncoder2(FALSE);
+        } else {                                // CW
+            position1 = -1*getEncoder1(FALSE);
+            position2 = getEncoder2(FALSE);
+        }
 
-//        sprintf(LCD_Out_Buffer,"ON=%4d OFF=%4d", ptON,ptOFF);
-//        LCDWriteString(LCD_Out_Buffer, 2, 1);
-        count = 0;
+        // calculate current velocity of each wheel
+        vel1 = (position1 - oldPos1);
+        vel2 = (position2 - oldPos2);
+        oldPos1 = position1;
+        oldPos2 = position2;
+
+        // the integral term keeps track of the difference between the motors
+        e_int += vel2 - vel1;
+
+        // the proportional error term
+        e1 += (CPS/TMR4_FREQ) - vel1;
+        e2 += (CPS/TMR4_FREQ) - vel2;
+
+        // the differentual error term
+        e_dif1 = e1 - e1Old;
+        e_dif2 = e2 - e2Old;
+        e1Old = e1;
+        e2Old = e2;
+
+        // calculate the PWM needed to maintain velocity
+        update1 = ((Kp*e1) + (Kd*e_dif1) + (Ki*e_int))/K0;      //right motor
+        update2 = ((Kp*e2) + (Kd*e_dif2) - (Ki*e_int))/K0;      // left motor
+
+        // do not exceed PWM bounds
+        if (update1>MAX_PWM)
+            update1 = MAX_PWM;
+        if (update1 < 0)
+            update1 = 0;
+        if (update2>MAX_PWM)
+            update2 = MAX_PWM;
+        if (update2 < 0)
+            update2 = 0;
+
+        // for printing data more slowly to UART
+        static int count = 0;
+        if (count == 25) {
+            char message[100];
+            //sprintf(message, "K %f %f %f vel: %f %f up: %d %d err: %f %f\r\n", Kp, Kd, Ki, vel1, vel2, update1, update2,e1,e2);
+            sprintf(message, "%ld %lld\r\n", position1, position2);
+            NU32_WriteUART1(message);
+            count = 0;
+        }
+        count++;
+
+        // stop the motors if the goal is reached
+        if (drive == 1 || drive == 2) {
+            if (position1 >= terminalCounts1)
+                reset = 1;
+        } else if (drive == 3) {
+            if ((360*(WHEEL_RADIUS/WHEELBASE)*(((float)(position1)-(-1*position2))/COUNTS_PER_REVOLUTION)) >= terminalDegrees)
+                reset = 1;
+        } else if (drive == 4) {
+            if ((360*(WHEEL_RADIUS/WHEELBASE)*(((float)(position2)-(-1*position1))/COUNTS_PER_REVOLUTION)) >= terminalDegrees)
+                reset = 1;
+        }
+        if (reset != 0) {
+            drive = 0;
+            terminalCounts1 = 0;
+            terminalDegrees = 0;
+            oldPos1 = 0;
+            oldPos2 = 0;
+            vel1 = 0;
+            vel2 = 0;
+            e1 = 0;
+            e2 = 0;
+            e1Old = 0;
+            e2Old = 0;
+            e_int = 0;
+            e_dif1 = 0;
+            e_dif2 = 0;
+            update1 = 0;
+            update2 = 0;
+            reset = 0;
+        }
+
+        setMotorSpeed(update2, update1);
+            
     }
-    count++;
+
 
 
     // clear interrupt flag and exit
     mT4ClearIntFlag();
 } // end T4 Interrupt
+
+// Timer5 ISR - for reading phototransisors at 10 Hz
+void __ISR(_TIMER_5_VECTOR, ipl3) Timer5ISR(void)
+{
+    //Kp = ReadADC10(0);
+    //Kd = ReadADC10(1);
+    //Ki = ReadADC10(2);
+
+    int ptON, ptOFF,j = 0;
+
+    COLOR_SENSOR1 = 1;
+    for (j=0;j<5000;j++){};
+    ptON = ReadADC10(3);
+    COLOR_SENSOR1 = 0;
+    for (j=0;j<5000;j++){};
+    ptOFF = ReadADC10(3);
+
+
+    // clear interrupt flag and exit
+    mT5ClearIntFlag();
+} // end T5 Interrupt
+
+void __ISR(_CHANGE_NOTICE_VECTOR, IPL3SOFT) ChangeNotificationISR(void)
+{
+    PORTD;
+    static int trig = 0;
+    static int dir = 1;
+    
+    if (time > (trig+100)) {
+        if (!COLLISION1) {
+            NU32LED1 = !NU32LED1;
+//            driveDistance(dir,2*11.13);
+//            dir = 3 - dir;
+            //turnAngle(dir,90);
+            //dir = 7 - dir;
+        }
+        trig = time;
+    }
+    
+
+        
+
+    mCNClearIntFlag(); // clear the interrupt flag
+}
 
 void __ISR(_UART_1_VECTOR, ipl2) IntUart1Handler(void)
 {
@@ -120,7 +259,6 @@ void __ISR(_UART_1_VECTOR, ipl2) IntUart1Handler(void)
         char data = UARTGetDataByte(UART1);
         PutCharacter(UART1,data);
         NU32LED1 = !NU32LED1;
-        NU32LED2 = !NU32LED2;
 
         // d = reverse direction
         if (data == 'd')
@@ -149,11 +287,11 @@ void __ISR(_UART_1_VECTOR, ipl2) IntUart1Handler(void)
 //        }
         if (data == 'h')
             rotateFanArm(FAN_ARM_HORIZONTAL);
-        if (data == 'g') 
+        if (data == 'v')
             rotateFanArm(FAN_ARM_VERTICAL);
         if (data == 'c')
             rotateTowerDoor(TOWER_DOOR_CLOSED);
-        if (data == 'x')
+        if (data == 'o')
             rotateTowerDoor(TOWER_DOOR_OPEN);
 
         // Clear the RX interrupt Flag
