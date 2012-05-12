@@ -6,30 +6,32 @@ void initCoreTimer(void);
 void initTimer4Interrupt(void);
 void initTimer5Interrupt(void);
 
-// ADC functions
-void initAnalogInput(void);
-
-// Digital IO functions
-void initDigitalOut(void);
+// Pin Initalization functions
 void initChangeNotification(void);
+void initDigitalOut(void);
+void initAnalogInput(void);
+void initOutputCompare(void);
 
 // Encoder functions
 void initEncoderSPI(void);
 long long getEncoder1(int reset);
 long long getEncoder2(int reset);
 
-// Motor functions
-void initHBridge(void);
-void setMotorSpeed(int dC1, int dC2);
-void reverseDirection();
-
-// Fan Arm Functions
+// Servo functions
 void rotateFanArm(int servoPos);
-
-// Door Functions
 void rotateTowerDoor(int servoPos);
+void scanLaser();
+
+// Fan functions
+void blowCubeIn();
+void blowCubeUp();
+void blowCubesOut();
+void blowCubeInAndOut();
 
 // Driving Functions
-void driveDistance(int dir, float inches);
-void turnAngle(int dir, float degrees);
+void setMotorSpeed(int dutyCycle1, int dutyCycle2);
+void reverseDirection();
+void driveDistance(float inches);
+void turnAngle(float degrees);
+void driveToCenter();
 #endif /* __LIBRARY_H_ */

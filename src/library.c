@@ -13,22 +13,48 @@ void initCoreTimer(void)
     WriteCoreTimer(0);                                 // set core timer counter to 0
 }
 
+// set a 250Hz timer interrupt
 void initTimer4Interrupt(void)
 {
-    // set a 250Hz timer interrupt
     OpenTimer4(T4_ON | T4_PS_1_256, TMR4_PR); // 80000000Hz / 256ps / 250Hz = 1250
     mT4SetIntPriority(3); // set Timer4 Interrupt Priority
     mT4ClearIntFlag(); // clear interrupt flag
     mT4IntEnable(1); // enable timer4 interrupts
 }
 
+// set a 10Hz timer interrupt
 void initTimer5Interrupt(void)
 {
-    // set a 10Hz timer interrupt
     OpenTimer5(T5_ON | T5_PS_1_256, TMR5_PR); // 80000000Hz / 256ps / 10Hz = 31250
     mT5SetIntPriority(3); // set Timer5 Interrupt Priority
     mT5ClearIntFlag(); // clear interrupt flag
     mT5IntEnable(1); // enable timer5 interrupts
+}
+
+// initalize the digital inputs with pullup resistors, and turn change notifcation ISR on
+void initChangeNotification(void)
+{
+    mPORTBSetPinsDigitalIn(BIT_0| BIT_1 | BIT_2 | BIT_3); // Make B0, B1, B2, B3 digital inputs
+    mCNOpen(CN_ON, CN2_ENABLE | CN3_ENABLE | CN4_ENABLE | CN5_ENABLE, CN2_PULLUP_ENABLE | CN3_PULLUP_ENABLE | CN4_PULLUP_ENABLE | CN5_PULLUP_ENABLE);
+
+    PORTB;  // Clear any mismatches that may already be there by reading the correct ports
+
+    mCNSetIntPriority(3);    // set change notifcation priority
+    mCNSetIntSubPriority(2); // set change notification subpriority
+    mCNClearIntFlag();
+    mCNIntEnable(1);        // enable change notifcation interrupts
+}
+
+// initalize the digital output pins 
+// Note: motor enable and direction pins initalized in initOutputCompare();
+//       encoder slave select pins initalized in initEncoderSPI();
+void initDigitalOut(void)
+{
+    mPORTDSetPinsDigitalOut(BIT_10 | BIT_11 | BIT_12 | BIT_13);  // make D10, D11, D12, D13 digital outs
+    LASER_LIGHT = 0;     // pin D10 - intially 0
+    LEDS = 0;            // pin D11 - initially 0
+    FAN1 = 0;            // pin D12 - initially 0
+    FAN2 = 0;            // pin D13 - initially 0
 }
 
 // initialize the analog input
@@ -42,24 +68,23 @@ void initAnalogInput(void)
     #define PARAM1  ADC_MODULE_ON | ADC_FORMAT_INTG | ADC_CLK_AUTO | ADC_AUTO_SAMPLING_ON
 
     // define setup parameters for OpenADC10
-    // ADC ref external    | disable offset test    | enable scan mode | perform 1 sample | use one buffer | use MUXA mode
-    #define PARAM2  ADC_VREF_AVDD_AVSS | ADC_OFFSET_CAL_DISABLE | ADC_SCAN_ON | ADC_SAMPLES_PER_INT_4 | ADC_ALT_BUF_OFF | ADC_ALT_INPUT_OFF
+    // ADC ref external | disable offset test | enable scan mode | perform 8 samples | use one buffer | use MUXA mode
+    #define PARAM2  ADC_VREF_AVDD_AVSS | ADC_OFFSET_CAL_DISABLE | ADC_SCAN_ON | ADC_SAMPLES_PER_INT_8 | ADC_ALT_BUF_OFF | ADC_ALT_INPUT_OFF
     // ** If you want to read more than 1 pin, change the 1 in ADC_SAMPLES_PER_INT_1 to the total number of pins you want
 
     // define setup parameters for OpenADC10
-    // 				  use ADC internal clock | set sample time
+    // use ADC internal clock | set sample time
     #define PARAM3  ADC_CONV_CLK_INTERNAL_RC | ADC_SAMPLE_TIME_15
 
     // define setup parameters for OpenADC10
-    // set AN0 -> pin B0, ...
-    #define PARAM4	ENABLE_AN0_ANA | ENABLE_AN1_ANA | ENABLE_AN2_ANA | ENABLE_AN3_ANA
+    #define PARAM4	ENABLE_AN6_ANA | ENABLE_AN7_ANA | ENABLE_AN8_ANA | ENABLE_AN9_ANA | ENABLE_AN10_ANA | ENABLE_AN11_ANA | ENABLE_AN12_ANA | ENABLE_AN13_ANA
     // ** If you want to read more pins, | (or) them together, like:
     // ** ENABLE_AN3_ANA | ENABLE_AN5_ANA | ENABLE_AN6_ANA
     // ** to read B3, B5 and B6
 
     // define setup parameters for OpenADC10
     // assign channels you don't want to scan
-    #define PARAM5	SKIP_SCAN_AN4 | SKIP_SCAN_AN5 | SKIP_SCAN_AN6 | SKIP_SCAN_AN7 | SKIP_SCAN_AN8 | SKIP_SCAN_AN9 | SKIP_SCAN_AN10 | SKIP_SCAN_AN11 | SKIP_SCAN_AN12 | SKIP_SCAN_AN13 | SKIP_SCAN_AN14 | SKIP_SCAN_AN15
+    #define PARAM5	SKIP_SCAN_AN0 | SKIP_SCAN_AN1 | SKIP_SCAN_AN2 | SKIP_SCAN_AN3 | SKIP_SCAN_AN4 | SKIP_SCAN_AN5 | SKIP_SCAN_AN14 | SKIP_SCAN_AN15
     // ** This one has all the pins that are not in PARAM4
 
     // use ground as neg ref for mux A, don't worry about it
@@ -69,32 +94,55 @@ void initAnalogInput(void)
     EnableADC10(); // Enable the ADC
 }
 
-// initalize the digital IO
-void initDigitalOut(void)
+// Initalize the 5 PWM pins + relevant digital outs
+void initOutputCompare(void)
 {
-    TRISDbits.TRISD12 = 0;            // pin D12 - digital out
-    COLLISION1 = 0;                   // pin D12 - initially 0
+    LATD  |= 0x0000; // set all of the outputs on D to low
+    TRISD &= 0xFE1F; // set pins 5, 6, 7, 8 in D to outputs (0xFF95 = 0b1111111000011111)
+
+    // use Timer2 for a 1kHz PWM signal for the motors on the h-bridge
+    OpenTimer2(T2_ON | T2_PS_1_64, 1250); // 80000000Hz / 64ps / 1000Hz = 1250
+
+    // Left Motor - pin D0
+    OpenOC1(OC_ON | OC_TIMER2_SRC | OC_PWM_FAULT_PIN_DISABLE, 0, 0);
+    SetDCOC1PWM(0); // duty cycle from 0-1250
+
+    // Right Motor - pin D1
+    OpenOC2(OC_ON | OC_TIMER2_SRC | OC_PWM_FAULT_PIN_DISABLE, 0, 0);
+    SetDCOC2PWM(0); // duty cycle from 0-1250
+
+    // use Timer3 for a 50Hz PWM signal for the RC servo motor
+    OpenTimer3(T3_ON | T2_PS_1_64, 25000); // 80000000Hz / 64ps / 50Hz = 25000
+
+    // Fan Arm - pin D2
+    OpenOC3(OC_ON | OC_TIMER3_SRC | OC_PWM_FAULT_PIN_DISABLE, 0, 0);
+    SetDCOC3PWM(FAN_ARM_VERTICAL); // duty cycle from 0-25000
+
+    // Tower Door - pin D3
+    OpenOC4(OC_ON | OC_TIMER3_SRC | OC_PWM_FAULT_PIN_DISABLE, 0, 0);
+    SetDCOC4PWM(TOWER_DOOR_CLOSED); // duty cycle from 0-25000
+
+    // Laser - pin D4
+    OpenOC5(OC_ON | OC_TIMER3_SRC | OC_PWM_FAULT_PIN_DISABLE, 0, 0);
+    SetDCOC5PWM(LASER_LEFT); // duty cycle from 0-25000
+
+    // Turn Motors ON
+    EN1 = 1;
+    EN2 = 1;
+
+    // Drive Forward
+    DIR1 = 0;
+    DIR2 = 0;
+
+    // initalize speed
+    setMotorSpeed(0,0);
 }
 
-void initChangeNotification(void)
-{
-    TRISDbits.TRISD13 = 1;                              // pin D13 - digital in
-    mCNOpen(CN_ON, CN19_ENABLE, CN19_PULLUP_ENABLE);    // D13-CN19
-
-    
-    PORTD;  // Clear any mismatches that may already be there by reading the correct ports
-        
-    mCNSetIntPriority(3);    // set change notifcation priority
-    mCNSetIntSubPriority(2); // set change notification subpriority
-    mCNClearIntFlag();
-    mCNIntEnable(1);        // enable change notifcation interrupts
-}
-
-// initialize SPI communication with the dsPIC at 8MHz with SS enabled
-// Uses SPI4, pins are: SDI4:F4-RP14, SDO4:F5-RP13, SCK4:F13-RP12, SS4:F12-RP15
+// initialize SPI communication with the dsPIC at 8MHz + relvant digital outs
+// Uses SPI4, pins are: SDI4:F4-RP14, SDO4:F5-RP13, SCK4:F13-RP12
 void initEncoderSPI(void) {
     TRISFbits.TRISF12 = 0;      // pin F12 - digital out
-    TRISFbits.TRISF3 = 0;      // pin F3 - digital out
+    TRISFbits.TRISF3 = 0;       // pin F3 - digital out
     SLAVE_SELECT1 = 1;
     SLAVE_SELECT2 = 1;
 
@@ -178,64 +226,158 @@ long long getEncoder2(int reset) {
     return total_count;
 }
 
-// Initalize the H-bridge
-void initHBridge(void)
+void rotateFanArm(int servoPos)
 {
-    LATD  |= 0x0000; // set all of the outputs on D to low
-    TRISD &= 0xFE1F; // set pins 5, 6, 7, 8 in D to outputs (0xFF95 = 0b1111111000011111)
+    SetDCOC3PWM(servoPos);
+}
 
-    // use Timer2 for a 1kHz PWM signal for the motor on the h-bridge
-    OpenTimer2(T2_ON | T2_PS_1_64, 1250); // 80000000Hz / 64ps / 1000Hz = 1250
-                                            // 1250 is < 2^16-1, so it is good to use
-                                            // this also means that 1250 corresponds to 100% duty cycle
+void rotateTowerDoor(int servoPos)
+{
+    SetDCOC4PWM(servoPos);
+}
 
-    OpenOC1(OC_ON | OC_TIMER2_SRC | OC_PWM_FAULT_PIN_DISABLE, 0, 0); // pin D0
-    SetDCOC1PWM(0); // duty cycle from 0-1250
+void scanLaser()
+{
+    long lastTime;
+    int pwm = LASER_LEFT;
+    int arrsize = ((LASER_RIGHT-LASER_LEFT)/LASER_STEP);
+    int ptON[arrsize], ptOFF[arrsize], ptDIF[arrsize];
+    int i = 0;
+    
+    while (pwm != LASER_RIGHT) {
+        ptOFF[i] = ReadADC10(LASER_PT);
+        LASER_LIGHT = 1;
+        lastTime = time;
+        while (time < lastTime + 2){};
+        ptON[i] = ReadADC10(LASER_PT);
+        LASER_LIGHT = 0;
 
-    OpenOC2(OC_ON | OC_TIMER2_SRC | OC_PWM_FAULT_PIN_DISABLE, 0, 0); // pin D1
-    SetDCOC2PWM(0); // duty cycle from 0-1250
+        pwm += LASER_STEP;
+        SetDCOC5PWM(pwm);
+        lastTime = time;
+        while (time < lastTime + 3){};
 
-    // use Timer3 for a 50Hz PWM signal for the RC servo motor
-    OpenTimer3(T3_ON | T2_PS_1_64, 25000); // 80000000Hz / 64ps / 50Hz = 25000
-                                         // 25000 is < 2^16-1, so it is good to use
-                                         // this also means that 25000 corresponds to 100% duty cycle
+        ptDIF[i] = ptON[i] - ptOFF[i];
+        sprintf(NU32_RS232OutBuffer,"%d\n", ptDIF[i]/2);
+        WriteString(UART1, NU32_RS232OutBuffer);
+        i++;
+    }
+    SetDCOC5PWM(LASER_LEFT);
 
-    OpenOC3(OC_ON | OC_TIMER3_SRC | OC_PWM_FAULT_PIN_DISABLE, 0, 0); // pin D2
-    SetDCOC3PWM(FAN_ARM_VERTICAL); // duty cycle from 0-25000
+}
 
-    OpenOC4(OC_ON | OC_TIMER3_SRC | OC_PWM_FAULT_PIN_DISABLE, 0, 0); // pin D3
-    SetDCOC4PWM(TOWER_DOOR_CLOSED); // duty cycle from 0-25000
+void blowCubeIn()
+{
+    if (!crateInFront) {
+        int crates = numCrates; // record the current number of crates
+        long startTime;  // record the current time
+        rotateFanArm(FAN_ARM_HORIZONTAL); // rotate fan arm into position
+        rotateTowerDoor(TOWER_DOOR_OPEN); // open the tower door
+        startTime = time;
+        while (time < startTime+200){};   // wait 2/10th of a second
+        FAN1 = 1;   // turn on the fan arm's fan
+        startTime = time;   // update the time
+        while (numCrates==crates) {   // while no new crates have entered the tower
+            if (time > startTime+1200)  // time out after 2 seconds
+                break;
+        }
+        FAN1 = 0;   // turn the fan off again
+        rotateFanArm(FAN_ARM_VERTICAL); // rotate fan arm back up
+        startTime = time;
+        while (time < startTime+200){};   // wait 2/10th of a second
+        rotateTowerDoor(TOWER_DOOR_CLOSED); // close the tower door
+    }
+}
 
-    // Turn Motors ON
-    EN1 = 1;
-    EN2 = 1;
+void blowCubeUp()
+{
+    if (!crateInFront) {
+        long startTime;  // record the current time
+        rotateFanArm(FAN_ARM_HORIZONTAL); // rotate fan arm into position
+        rotateTowerDoor(TOWER_DOOR_AJAR); // open the tower door
+        time = startTime;
+        while (time < startTime+200){};   // wait 2/10th of a second
+        FAN1 = 1;   // turn on the fan arm's fan
+        startTime = time;   // update the time
+        while (time < startTime+700){};
+        FAN1 = 0;   // turn the fan off again
+        rotateFanArm(FAN_ARM_VERTICAL); // rotate fan arm back up
+        startTime = time;
+        while (time < startTime+500){};   // wait 5/10th of a second
+        rotateTowerDoor(TOWER_DOOR_CLOSED); // close the tower door
+    }
+}
 
-    // Drive Forward
-    DIR1 = 0;
-    DIR2 = 0;
+void blowCubesOut()
+{
+    long startTime = time;  // record the current time
+    FAN2 = 1;   // turn the tower fan on
+    while (numCrates != 0) {
+        if (time > startTime+3000)  // time out after 3 seconds
+                break;
+    }
+    startTime = time;
+    while (time < startTime+300){};   // wait 300 ms
+    FAN2 = 0;   // turn the tower fan off
+}
 
-    // initalize speed
-    setMotorSpeed(0,0);
+void blowCubeInAndOut()
+{
+    if (!crateInFront) {
+        int crates = numCrates; // record the current number of crates
+        long startTime;  // record the current time
+        rotateFanArm(FAN_ARM_HORIZONTAL); // rotate fan arm into position
+        rotateTowerDoor(TOWER_DOOR_OPEN); // open the tower door
+        startTime = time;
+        while (time < startTime+700){};   // wait 7/10th of a second
+        FAN1 = 1;   // turn on the fan arm's fan
+        startTime = time;   // update the time
+        while (time < startTime + 250){};
+        FAN1 = 0;
+        startTime = time;
+        while (time < startTime + 750){};
+        FAN1 = 1;
+        startTime = time;
+        while (numCrates==crates) {   // while no new crates have entered the tower
+            if (time > startTime+2000)  // time out after 2 seconds
+                break;
+        }
+        FAN1 = 0;   // turn the fan off again
+        rotateFanArm(FAN_ARM_VERTICAL); // rotate fan arm back up
+        while (time < startTime+200){};   // wait 2/10th of a second
+        rotateTowerDoor(TOWER_DOOR_CLOSED); // close the tower door
+        startTime = time;
+        while (time < startTime + 200){};
+        FAN2 = 1;   // turn the tower fan on
+        startTime = time;
+        while (numCrates != 0) {
+            if (time > startTime+3000)  // time out after 3 seconds
+                    break;
+        }
+        startTime = time;
+        while (time < startTime+300){};   // wait 300 ms
+        FAN2 = 0;   // turn the tower fan off
+        }
 }
 
 // Set the pwm duty cycle that controls motor speed
-void setMotorSpeed(int dC1, int dC2)
+void setMotorSpeed(int dutyCycle1, int dutyCycle2)
 {
     static unsigned int speed1 = 0;
     static unsigned int speed2 = 0;
-    if (dC1 >= 0 && dC2 >= 0) {
-        speed1 = dC1;
-        speed2 = dC2;
+    if (dutyCycle1 >= 0 && dutyCycle2 >= 0) {
+        speed1 = dutyCycle1;
+        speed2 = dutyCycle2;
     }
         
     if (DIR1 == 0)
-        SetDCOC1PWM(dC1);
+        SetDCOC1PWM(speed1);
     else
-        SetDCOC1PWM(MAX_PWM - dC1);
+        SetDCOC1PWM(MAX_PWM - speed1);
     if (DIR2 == 0)
-        SetDCOC2PWM(dC2);
+        SetDCOC2PWM(speed2);
     else
-        SetDCOC2PWM(MAX_PWM - dC2);
+        SetDCOC2PWM(MAX_PWM - speed2);
 }
 
 // reverse motor direction while keeping speed constant
@@ -248,57 +390,54 @@ void reverseDirection()
     setMotorSpeed(-1,-1); // alter pwm since direction reversed
 }
 
-void rotateFanArm(int servoPos)
+void driveDistance(float inches)
 {
-    SetDCOC3PWM(servoPos);
-}
+    // reset encoders
+    getEncoder1(TRUE);getEncoder2(TRUE);
+    getEncoder1(TRUE);getEncoder2(TRUE);
 
-void rotateTowerDoor(int servoPos)
-{
-    SetDCOC4PWM(servoPos);
-}
-
-void driveDistance(int dir, float inches)
-{
-    getEncoder1(TRUE);
-    getEncoder2(TRUE);
-    getEncoder1(TRUE);
-    getEncoder2(TRUE);
-    if (dir <= 1) {
+    if (inches >= 0) {
         DIR1 = 0;
         DIR2 = 0;
-        drive = 1;
+        drivingState = FORWARD;
+        terminalCounts1 = MM_TO_COUNTS(IN_TO_MM(inches))-INERTIA_COUNTS;
     } else {
         DIR1 = 1;
         DIR2 = 1;
-        drive = 2;
+        drivingState = BACKWARD;
+        terminalCounts1 = MM_TO_COUNTS(IN_TO_MM(-1*inches))-INERTIA_COUNTS;
     }
-        
-    terminalCounts1 = MM_TO_COUNTS(IN_TO_MM(inches))-INERTIA_COUNTS;
 }
 
-void turnAngle(int dir, float degrees)    // 3 = CCW, 4 = CW
+void turnAngle(float degrees)    // 3 = CCW, 4 = CW
 {
-    getEncoder1(TRUE);
-    getEncoder2(TRUE);
-    getEncoder1(TRUE);
-    getEncoder2(TRUE);
-    if (dir <= 3) {
+    // reset encoders
+    getEncoder1(TRUE);getEncoder2(TRUE);
+    getEncoder1(TRUE);getEncoder2(TRUE);
+    
+    if (degrees < 0) {
         DIR1 = 1;
         DIR2 = 0;
-        drive = 3;
+        drivingState = CCW;
+        terminalDegrees = -1*degrees;
     }
     else {
         DIR1 = 0;
         DIR2 = 1;
-        drive = 4;
+        drivingState = CW;
+        terminalDegrees = degrees;
     }
-    terminalDegrees = degrees;
-    //setMotorSpeed(MAX_PWM);
-//    float angle = 360*(WHEEL_RADIUS/WHEELBASE)*(((float)(position1-enc1)-(position2-enc2))/COUNTS_PER_REVOLUTION);
-//    while(angle < degrees) {
-//        angle = 360*(WHEEL_RADIUS/WHEELBASE)*(((float)(position1-enc1)-(position2-enc2))/COUNTS_PER_REVOLUTION);
-//    }
-    //setMotorSpeed(0);
+}
 
+void driveToCenter()
+{
+    lastColor = currentColor;
+    if (lastColor == startingColor) {
+        DIR1 = 0;
+        DIR2 = 0;
+    } else {
+        DIR1 = 1;
+        DIR2 = 1;
+    }
+    drivingState = COLOR_SWITCH;
 }

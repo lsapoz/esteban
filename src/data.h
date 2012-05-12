@@ -2,19 +2,12 @@
 #define __DATA_H_
 
 // Constants
-#define CORE_TICKS 400000  // 400 K ticks (1/100 second)
-#define COUNTS_PER_REVOLUTION 8192 // motor's CPR with 4x quadrature
-#define MAX_PWM 1250
-#define WHEEL_RADIUS 45     // 45 mm
-#define WHEELBASE 174.82    // 174.82 mm
-#define INERTIA_COUNTS 500
-#define CPS 4000.0    // 4000 encoder ticks per second
-#define WINDUP 200 // windup for the motion control loop
-
-//#define Kp 324
-//#define Kd 502
-//#define Ki 53
-//#define K0 100
+#define CORE_TICKS 40000            // 40,000 ticks (1/1000 second)
+#define COUNTS_PER_REVOLUTION 8192  // motor's CPR with 4x quadrature
+#define MAX_PWM 1250                // 100% duty cycle
+#define WHEEL_RADIUS 45             // 45 mm
+#define WHEELBASE 174.82            // 174.82 mm
+#define INERTIA_COUNTS 500          // extra counts recorded after motors stop
 
 // Formulas
 #define COUNTS_TO_MM(c) (2*3.14159*WHEEL_RADIUS*((float)c/COUNTS_PER_REVOLUTION))
@@ -24,50 +17,115 @@
 
 // Timers
 #define TMR4_FREQ 250                           // 250 Hz
-#define TMR4_PS 256                             //Prescaler - IF CHANGED, CHANGE IN APPRORIPATE FUNCTION
+#define TMR4_PS 256                             //Prescaler - IF CHANGED, CHANGE IN INITIALIZATION FUNCTION
 #define TMR4_PR SYS_FREQ/TMR4_PS/TMR4_FREQ      //Period Register
 
 #define TMR5_FREQ 10                            // 10 Hz
-#define TMR5_PS 256                             //Prescaler - IF CHANGED, CHANGE IN APPRORIPATE FUNCTION
+#define TMR5_PS 256                             //Prescaler - IF CHANGED, CHANGE IN INITIALIZATION FUNCTION
 #define TMR5_PR SYS_FREQ/TMR5_PS/TMR5_FREQ      //Period Register
 
-// Motor Pins
-#define DIR1 LATDbits.LATD5  //motor 1 direction pin - D5
-#define DIR2 LATDbits.LATD6  //motor 2 direction pin - D6
-#define EN1  LATDbits.LATD7  //motor 1 enable pin - D7
-#define EN2  LATDbits.LATD8  //motor 2 enable pin - D8
+// Motion Control
+//#define Kp 324
+//#define Kd 502
+//#define Ki 53
+//#define K0 100
+#define CPS 8000.0    // 4000 encoder ticks per second
+#define WINDUP 1000    // windup for the motion control loop
 
-//// Encoder Pins
-#define SLAVE_SELECT1 LATFbits.LATF12   // pin F12
-#define SLAVE_SELECT2 LATFbits.LATF3    // pin F3
+// Driving States
+#define STATIONARY 0
+#define FORWARD 1
+#define BACKWARD 2
+#define CCW 3
+#define CW 4
+#define COLOR_SWITCH 5
 
-// Color Detection Pins
-#define COLOR_SENSOR1 LATDbits.LATD12  // color sensor 1 LED - D12
+// Color States
+#define WHITE 0
+#define PURPLE 1
+#define BLACK 2
+#define BOTH 3
 
-// Break Beam Pins
-#define BREAK_BEAM_PT_3 3       // lower tower break beam ADC pin
-
-// Collision Detection Pins
-#define COLLISION1 PORTDbits.RD13   // D13
+// Voltage Thresholds
+#define CS1_BP_THRESHOLD 150     // threshold between black and purple for CS1
+#define CS1_PW_THRESHOLD 550     // threshold betweeb purple and white for CS1
+#define CS2_BP_THRESHOLD 300     // threshold between black and purple for CS2
+#define CS2_PW_THRESHOLD 850     // threshold betweeb purple and white for CS2
+#define BB_THRESHOLD 100         // break beam threshold
 
 // Fan Arm
-#define FAN_ARM_VERTICAL 2895      // "Fan Arm - Vertical" servo pwm
-#define FAN_ARM_HORIZONTAL 1750   // "Fan Arm - Horizontal" servo pwm
+#define FAN_ARM_VERTICAL 2950    // "Fan Arm - Vertical" servo pwm
+#define FAN_ARM_HORIZONTAL 1615  // "Fan Arm - Horizontal" servo pwm
 
 // Tower Door
 #define TOWER_DOOR_OPEN 1925     // "Tower Door - Open" servo pwm
-#define TOWER_DOOR_CLOSED 2745   // "Tower Door - Closed" servo pwm
+#define TOWER_DOOR_CLOSED 2735   // "Tower Door - Closed" servo pwm
+#define TOWER_DOOR_AJAR 2425     // "Tower Door - Ajar" servo pwm
+
+// Laser
+#define LASER_LEFT 850     // "Tower Door - Open" servo pwm
+#define LASER_RIGHT 2700   // "Tower Door - Closed" servo pwm
+#define LASER_STEP 10
+
+// Motor Pins
+#define DIR1 LATDbits.LATD5      //motor 1 direction pin - D5
+#define DIR2 LATDbits.LATD6      //motor 2 direction pin - D6
+#define EN1  LATDbits.LATD7      //motor 1 enable pin - D7
+#define EN2  LATDbits.LATD8      //motor 2 enable pin - D8
+
+// Encoder Pins
+#define SLAVE_SELECT1 LATFbits.LATF12     // pin F12
+#define SLAVE_SELECT2 LATFbits.LATF3      // pin F3
+
+// "Smallest" Analog Pin being read
+#define SAP 6   // pin B6 is the "smallest" analog input scanned
+
+// Laser Pins
+#define LASER_LIGHT LATDbits.LATD10          // pin D10
+#define LASER_PT 6 - SAP                     // pin B6
+
+// LEDs toggle pin
+#define LEDS LATDbits.LATD11                 // pin D11
+
+// Fan toggle pins
+#define FAN1 LATDbits.LATD12                 // pin D12
+#define FAN2 LATDbits.LATD13                 // pin D13
+
+// Color Detection Pins
+#define COLOR_SENSOR_LEFT 7 - SAP            // pin B7
+#define COLOR_SENSOR_RIGHT 8 - SAP           // pin B8
+
+// Break Beam Pins
+#define BB_CHASSIS_FRONT 9 - SAP     // pin B9
+#define BB_CHASSIS_MIDDLE 10 - SAP   // pin B10
+#define BB_TOWER_BOTTOM 11 - SAP     // pin B11
+#define BB_TOWER_MIDDLE 12 - SAP     // pin B12
+#define BB_TOWER_TOP 13 - SAP        // pin B13
+
+// Collision Detection Pins
+#define COLLISION_TOP_LEFT PORTBbits.RB0   // pin B0 - CN2
+#define COLLISION_TOP_RIGHT PORTBbits.RB1  // pin B1 - CN3
+#define COLLISION_BOTTOM_LEFT PORTBbits.RB2   // pin B2 - CN4
+#define COLLISION_BOTTOM_RIGHT PORTBbits.RB3  // pin B3 - CN5
 
 
 // Global Variables
-int time;
-long long position1, position2;
-int drive;  // 0 = still, 1 = Forward, 2 = Backward, 3 = CCW, 4 = CW
-float terminalCounts1, terminalDegrees;
+long time;          // time in milliseconds
+int drivingState;   // one of 5 states
+int startingColor;  // "home" color
+int currentColor, currentColor1, currentColor2;  // current readings of the color sensors
+int lastColor;      // used for driving to center
 
-//Motion Control
+int numCrates;                     // the number of crates in the tower
+int crateInFront, crateInMiddle;   // booleans for front and middle break beams
+
+long long position1, position2;         // current position of tne encoders
+float terminalCounts1, terminalDegrees; // these dictate when to stop driving
+
+//Motion Control - Temporarily global variables - will become defined constants
 float Kp;  // proportional gain for motion control loop
 float Ki;  // integral gain for the motion control loop
 float Kd;  // differential gain for the motion control loop
+float Kt;  // tie gain for the motional control loop
 float K0;  // motion divisor used for increasing magnitude of motion control gains
 #endif /* __DATA_H_ */
