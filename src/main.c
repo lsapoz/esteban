@@ -18,11 +18,13 @@ int main(void)
     crateInFront = crateInMiddle = 0;
     terminalCounts1 = 0;
     terminalDegrees = 0;
+    globalAngle = 0;
+    cps = CPS_FAST;
 
     // set temporary motion control variables
     Kp = 70;
     Kd = 170;
-    Ki = 15;
+    Ki = 5;
     Kt = 12;
     K0 = 100;
 
@@ -47,7 +49,7 @@ int main(void)
     initTimer5Interrupt();
 
     // print to the LCD
-    sprintf(LCD_Out_Buffer,"Esteban PCM");
+    sprintf(LCD_Out_Buffer,"Esteban DC");
     LCDWriteString(LCD_Out_Buffer, 1, 1);
 
     // initialize UARTS and interrupts
@@ -55,15 +57,13 @@ int main(void)
     NU32_Initialize();
 
     // print to the computer
-    sprintf(NU32_RS232OutBuffer,"Esteban PCM\r\n");
+    sprintf(NU32_RS232OutBuffer,"Esteban DC\r\n");
     NU32_WriteUART1(NU32_RS232OutBuffer);
 
     long blah;
     while(1) {
         if (crateInMiddle == 1 && numCrates < 3) {
             terminalCounts1 = 0;
-            //blah = time;
-            //while (time < blah+500){};
             blowCubeIn();
         }
         if (crateInMiddle == 1 && numCrates == 3) {
@@ -126,14 +126,14 @@ void __ISR(_TIMER_4_VECTOR, ipl3) Timer4ISR(void)
             position1 = getEncoder1(FALSE);
             position2 = getEncoder2(FALSE);
         } else if (drivingState == BACKWARD) {
-            position1 = -1*getEncoder1(FALSE);
-            position2 = -1*getEncoder2(FALSE);
+            position1 = -getEncoder1(FALSE);
+            position2 = -getEncoder2(FALSE);
         } else if (drivingState == CCW) {
-            position1 = -1*getEncoder1(FALSE);
+            position1 = -getEncoder1(FALSE);
             position2 = getEncoder2(FALSE);
         } else if (drivingState == CW){                                  
             position1 = getEncoder1(FALSE);
-            position2 = -1*getEncoder2(FALSE);
+            position2 = -getEncoder2(FALSE);
         } else if (drivingState == COLOR_SWITCH) {
             if (lastColor == startingColor) {
                 //forward
@@ -141,8 +141,8 @@ void __ISR(_TIMER_4_VECTOR, ipl3) Timer4ISR(void)
                 position2 = getEncoder2(FALSE);
             } else {
                 // backward
-                position1 = -1*getEncoder1(FALSE);
-                position2 = -1*getEncoder2(FALSE);
+                position1 = -getEncoder1(FALSE);
+                position2 = -getEncoder2(FALSE);
             }
         }
 
@@ -156,8 +156,8 @@ void __ISR(_TIMER_4_VECTOR, ipl3) Timer4ISR(void)
         e_tie += vel1 - vel2;
 
         // the proportional error term
-        e1 += (CPS/TMR4_FREQ) - vel1;
-        e2 += (CPS/TMR4_FREQ) - vel2;
+        e1 += (cps/TMR4_FREQ) - vel1;
+        e2 += (cps/TMR4_FREQ) - vel2;
 
         // the differentual error term
         e_dif1 = e1 - e1Old;
@@ -197,8 +197,9 @@ void __ISR(_TIMER_4_VECTOR, ipl3) Timer4ISR(void)
         static int count = 0;
         if (count == 25) {
             //char message[100];
-            //sprintf(message, "%ld %lld\r\n", position1, position2);
+//            sprintf(message, "%ld %lld\r\n", position1, position2);
 //            sprintf(message, "K %f %f %f %f vel: %f %f up: %d %d err: %f %f\r\n", Kp, Kd, Ki, vel1, vel2, update1, update2,e1,e2);
+//            sprintf(message, "%d \r\n",(360*(WHEEL_RADIUS/WHEELBASE)*(((float)(position2)-(-1*position1))/COUNTS_PER_REVOLUTION)));
 //            NU32_WriteUART1(message);
 //            sprintf(NU32_RS232OutBuffer,"%d %d\n", (int)(10*vel1), (int)(10*vel2));
 //            WriteString(UART1, NU32_RS232OutBuffer);
@@ -207,21 +208,38 @@ void __ISR(_TIMER_4_VECTOR, ipl3) Timer4ISR(void)
         count++;
 
         // stop the motors if the desired position is reached
-        if (drivingState == FORWARD || drivingState == BACKWARD) {
-            if (position1 >= terminalCounts1)
-                reset = 1;
-        } else if (drivingState == CCW) {
-            if ((360*(WHEEL_RADIUS/WHEELBASE)*(((float)(position2)-(-1*position1))/COUNTS_PER_REVOLUTION)) >= terminalDegrees)
-                reset = 1;
-        } else if (drivingState == CW) {
-            if ((360*(WHEEL_RADIUS/WHEELBASE)*(((float)(position1)-(-1*position2))/COUNTS_PER_REVOLUTION)) >= terminalDegrees)
-                reset = 1;
-        } else if (drivingState == COLOR_SWITCH) {
-            if (lastColor != currentColor)
-                reset = 1;
+        if (cps == CPS_FAST) {
+            if (drivingState == FORWARD || drivingState == BACKWARD) {
+                if (position1 >= terminalCounts1 - BOUNDARY_COUNTS)
+                    reset = SOFT;
+            } else if (drivingState == CCW) {
+                if (POSITION_TO_ANGLE(position1,position2) >= terminalDegrees - BOUNDARY_ANGLE)
+                    reset = SOFT;
+            } else if (drivingState == CW) {
+                if (POSITION_TO_ANGLE(position1,position2) >= terminalDegrees - BOUNDARY_ANGLE)
+                    reset = SOFT;
+            } else if (drivingState == COLOR_SWITCH) {
+                if (lastColor != currentColor)
+                    reset = SOFT;
+            }
+        } else {
+            if (drivingState == FORWARD || drivingState == BACKWARD) {
+                if (position1 >= terminalCounts1)
+                    reset = HARD;
+            } else if (drivingState == CCW) {
+                if (POSITION_TO_ANGLE(position1,position2) >= terminalDegrees)
+                    reset = HARD;
+            } else if (drivingState == CW) {
+                if (POSITION_TO_ANGLE(position1,position2) >= terminalDegrees)
+                    reset = HARD;
+            } else if (drivingState == COLOR_SWITCH) {
+                if (lastColor != currentColor)
+                    reset = HARD;
+            }
         }
+
         
-        if (reset != 0) {
+        if (reset == HARD) {
             drivingState = STATIONARY;
             terminalCounts1 = 0;
             terminalDegrees = 0;
@@ -240,7 +258,11 @@ void __ISR(_TIMER_4_VECTOR, ipl3) Timer4ISR(void)
             e_tie = 0;
             update1 = 0;
             update2 = 0;
-            reset = 0;
+            cps = CPS_FAST;
+            reset = NONE;
+        } else if (reset == SOFT) {
+            cps = CPS_SLOW;
+            reset = NONE;
         }
 
         setMotorSpeed(update1, update2);
@@ -257,6 +279,8 @@ void __ISR(_TIMER_4_VECTOR, ipl3) Timer4ISR(void)
 void __ISR(_TIMER_5_VECTOR, ipl3) Timer5ISR(void)
 {
     int i, j;
+    static int count = 0;
+    count++;
     int ptON[7], ptOFF[7], ptDIF[7];
     int crates = 0;
     long lastTime;
@@ -277,37 +301,42 @@ void __ISR(_TIMER_5_VECTOR, ipl3) Timer5ISR(void)
     for (j=0; j<7; j++)
         ptDIF[j] = ptON[j]-ptOFF[j];
 
-    // Color sensor 1
-    if (ptDIF[0] < CS1_BP_THRESHOLD)
-        currentColor1 = BLACK;
-    else if (ptDIF[0] < CS1_PW_THRESHOLD)
-        currentColor1 = PURPLE;
-    else
-        currentColor1 = WHITE;
-
-    // Color sensor 2
-    if (ptDIF[1] < CS2_BP_THRESHOLD)
-        currentColor2 = BLACK;
-    else if (ptDIF[1] < CS2_PW_THRESHOLD)
-        currentColor2 = PURPLE;
-    else
-        currentColor2 = WHITE;
-
-    // If first time, set starting color
-    if (firstTime == 0) {
-        if (currentColor1 == currentColor2 && currentColor1 != BLACK) {
-            startingColor = currentColor1;
-            firstTime++;    // never run this loop again
-        }
-    }
-
-    if (currentColor1 != BLACK && currentColor2 != BLACK) {
-        if (currentColor1 == currentColor2)
-            currentColor = currentColor1;
+    //if ((drivingState != STATIONARY && count == 5) || firstTime == 0) {
+    if ((count == 5) || firstTime == 0) {
+        // Color sensor 1
+        if (ptDIF[0] < CS1_BP_THRESHOLD)
+            currentColor1 = BLACK;
+        else if (ptDIF[0] < CS1_PW_THRESHOLD)
+            currentColor1 = PURPLE;
         else
-            currentColor = BOTH;
-    }
+            currentColor1 = WHITE;
 
+        // Color sensor 2
+        if (ptDIF[1] < CS2_BP_THRESHOLD)
+            currentColor2 = BLACK;
+        else if (ptDIF[1] < CS2_PW_THRESHOLD)
+            currentColor2 = PURPLE;
+        else
+            currentColor2 = WHITE;
+
+        // If first time, set starting color
+        if (firstTime == 0) {
+            if (currentColor1 == currentColor2 && currentColor1 != BLACK) {
+                startingColor = currentColor1;
+                firstTime++;    // never run this loop again
+            }
+        }
+
+
+        if (currentColor1 != BLACK && currentColor2 != BLACK) {
+            if (currentColor1 == currentColor2)
+                currentColor = currentColor1;
+            else
+                currentColor = BOTH;
+        }
+
+        count = 0;
+    }
 
     // breakbeam - chassis - front
     if (ptDIF[2] < BB_THRESHOLD)
@@ -330,11 +359,13 @@ void __ISR(_TIMER_5_VECTOR, ipl3) Timer5ISR(void)
         crates++;
     numCrates = crates;
 
-//    char message[100];
-//    sprintf(message, "%d %d %d %d \r\n", startingColor, currentColor, currentColor1, currentColor2);
-//    NU32_WriteUART1(message);
+    char message[100];
+    sprintf(message, "%d %d %d %d %d %d\r\n", startingColor, currentColor, currentColor1, currentColor2, ptDIF[0], ptDIF[1]);
+    NU32_WriteUART1(message);
 
-    
+    sprintf(LCD_Out_Buffer, "%f \r\n",POSITION_TO_ANGLE(position1,position2));
+    LCDWriteString(LCD_Out_Buffer, 2, 1);
+
     // clear interrupt flag and exit
     mT5ClearIntFlag();
 } // end T5 Interrupt
@@ -347,27 +378,31 @@ void __ISR(_CHANGE_NOTICE_VECTOR, IPL3SOFT) ChangeNotificationISR(void)
     if (time > (lastTime+1000)) {
         if (!COLLISION_TOP_LEFT) {
             NU32LED1 = !NU32LED1;
-            sprintf(LCD_Out_Buffer,"Top Left    ");
-            LCDWriteString(LCD_Out_Buffer, 2, 1);
-            turnAngle(-30);
+//            sprintf(LCD_Out_Buffer,"Top Left    ");
+//            LCDWriteString(LCD_Out_Buffer, 2, 1);
+            //turnAngle(-90);
+            resetAngle();
         }
         if (!COLLISION_TOP_RIGHT) {
             NU32LED1 = !NU32LED1;
-            sprintf(LCD_Out_Buffer,"Top Right   ");
-            LCDWriteString(LCD_Out_Buffer, 2, 1);
-            turnAngle(30);
+//            sprintf(LCD_Out_Buffer,"Top Right   ");
+//            LCDWriteString(LCD_Out_Buffer, 2, 1);
+            turnAngle(90);
         }
         if (!COLLISION_BOTTOM_LEFT) {
             NU32LED1 = !NU32LED1;
-            sprintf(LCD_Out_Buffer,"Bottom Left ");
-            LCDWriteString(LCD_Out_Buffer, 2, 1);
-            driveDistance(4*11.13);
+//            sprintf(LCD_Out_Buffer,"Bottom Left ");
+//            LCDWriteString(LCD_Out_Buffer, 2, 1);
+            //driveDistance(3*11.13);
+            turnAngle(-30);
         }
         if (!COLLISION_BOTTOM_RIGHT) {
             NU32LED1 = !NU32LED1;
-            sprintf(LCD_Out_Buffer,"Bottom Right");
-            LCDWriteString(LCD_Out_Buffer, 2, 1);
-            driveDistance(-4*11.13);
+//            sprintf(LCD_Out_Buffer,"Bottom Right");
+//            LCDWriteString(LCD_Out_Buffer, 2, 1);
+            //driveDistance(-3*11.13);
+            //driveToCenter();
+            turnAngle(30);
         }
         lastTime = time;
     }    

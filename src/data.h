@@ -14,6 +14,7 @@
 #define MM_TO_COUNTS(m) ((float)(COUNTS_PER_REVOLUTION*m)/(2*3.14159*WHEEL_RADIUS))
 #define MM_TO_IN(m) (0.03937*(float)m)
 #define IN_TO_MM(i) (25.4*(float)i)
+#define POSITION_TO_ANGLE(p,q) (360*(WHEEL_RADIUS/WHEELBASE)*(((float)p+q)/COUNTS_PER_REVOLUTION))
 
 // Timers
 #define TMR4_FREQ 250                           // 250 Hz
@@ -29,7 +30,9 @@
 //#define Kd 502
 //#define Ki 53
 //#define K0 100
-#define CPS 8000.0    // 4000 encoder ticks per second
+#define CPS_FAST 8000.0    // 8000 encoder ticks per second
+#define CPS_SLOW 4000.0
+#define CPS_SUPER_SLOW 3000.0
 #define WINDUP 1000    // windup for the motion control loop
 
 // Driving States
@@ -39,6 +42,14 @@
 #define CCW 3
 #define CW 4
 #define COLOR_SWITCH 5
+#define STOP 6
+
+// Reset States
+#define NONE 0
+#define SOFT 1
+#define HARD 2
+#define BOUNDARY_COUNTS 2000
+#define BOUNDARY_ANGLE 45
 
 // Color States
 #define WHITE 0
@@ -58,8 +69,8 @@
 #define FAN_ARM_HORIZONTAL 1615  // "Fan Arm - Horizontal" servo pwm
 
 // Tower Door
-#define TOWER_DOOR_OPEN 1925     // "Tower Door - Open" servo pwm
-#define TOWER_DOOR_CLOSED 2735   // "Tower Door - Closed" servo pwm
+#define TOWER_DOOR_OPEN 1955     // "Tower Door - Open" servo pwm
+#define TOWER_DOOR_CLOSED 2765   // "Tower Door - Closed" servo pwm
 #define TOWER_DOOR_AJAR 2425     // "Tower Door - Ajar" servo pwm
 
 // Laser
@@ -116,11 +127,15 @@ int startingColor;  // "home" color
 int currentColor, currentColor1, currentColor2;  // current readings of the color sensors
 int lastColor;      // used for driving to center
 
+float cps;
+
 int numCrates;                     // the number of crates in the tower
 int crateInFront, crateInMiddle;   // booleans for front and middle break beams
 
 long long position1, position2;         // current position of tne encoders
-float terminalCounts1, terminalDegrees; // these dictate when to stop driving
+float terminalCounts1;
+int terminalDegrees; // these dictate when to stop driving
+int globalAngle;
 
 //Motion Control - Temporarily global variables - will become defined constants
 float Kp;  // proportional gain for motion control loop

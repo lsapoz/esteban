@@ -32,6 +32,7 @@ void blowCubeInAndOut();
 void setMotorSpeed(int dutyCycle1, int dutyCycle2);
 void reverseDirection();
 void driveDistance(float inches);
-void turnAngle(float degrees);
+void turnAngle(int degrees);
+void resetAngle();
 void driveToCenter();
 #endif /* __LIBRARY_H_ */

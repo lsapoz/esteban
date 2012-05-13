@@ -286,6 +286,23 @@ void blowCubeIn()
         startTime = time;
         while (time < startTime+200){};   // wait 2/10th of a second
         rotateTowerDoor(TOWER_DOOR_CLOSED); // close the tower door
+
+        int count = 0;
+        while (numCrates == crates) {
+            rotateFanArm(FAN_ARM_HORIZONTAL); // rotate fan arm back up
+            startTime = time;
+            while (time < startTime + 400){};
+            FAN1 = 1;
+            startTime = time;
+            while (time < startTime + 250){};
+            FAN1 = 0;
+            rotateFanArm(FAN_ARM_VERTICAL); // rotate fan arm back up
+            startTime = time;
+            while (time < startTime + 600){};
+            count++;
+            if (count > 1 || crateInMiddle == 1)
+                break;
+        }
     }
 }
 
@@ -294,7 +311,6 @@ void blowCubeUp()
     if (!crateInFront) {
         long startTime;  // record the current time
         rotateFanArm(FAN_ARM_HORIZONTAL); // rotate fan arm into position
-        rotateTowerDoor(TOWER_DOOR_AJAR); // open the tower door
         time = startTime;
         while (time < startTime+200){};   // wait 2/10th of a second
         FAN1 = 1;   // turn on the fan arm's fan
@@ -302,23 +318,33 @@ void blowCubeUp()
         while (time < startTime+700){};
         FAN1 = 0;   // turn the fan off again
         rotateFanArm(FAN_ARM_VERTICAL); // rotate fan arm back up
-        startTime = time;
-        while (time < startTime+500){};   // wait 5/10th of a second
-        rotateTowerDoor(TOWER_DOOR_CLOSED); // close the tower door
     }
 }
 
 void blowCubesOut()
 {
-    long startTime = time;  // record the current time
-    FAN2 = 1;   // turn the tower fan on
-    while (numCrates != 0) {
-        if (time > startTime+3000)  // time out after 3 seconds
-                break;
+    int count = 0;
+    while (numCrates != 0 && count < 3) {
+         long startTime = time;  // record the current time
+        FAN2 = 1;   // turn the tower fan on
+        while (numCrates != 0) {
+            if (time > startTime+3000)  // time out after 3 seconds
+                    break;
+        }
+        startTime = time;
+        while (time < startTime+300){};   // wait 300 ms
+        FAN2 = 0;   // turn the tower fan off
+
+        rotateTowerDoor(TOWER_DOOR_AJAR);
+        startTime = time;
+        while (time < startTime+200){};   // wait 200 ms
+        rotateTowerDoor(TOWER_DOOR_CLOSED);
+
+        startTime = time;
+        while (time < startTime+400){};
+        count++;
     }
-    startTime = time;
-    while (time < startTime+300){};   // wait 300 ms
-    FAN2 = 0;   // turn the tower fan off
+
 }
 
 void blowCubeInAndOut()
@@ -327,13 +353,13 @@ void blowCubeInAndOut()
         int crates = numCrates; // record the current number of crates
         long startTime;  // record the current time
         rotateFanArm(FAN_ARM_HORIZONTAL); // rotate fan arm into position
-        rotateTowerDoor(TOWER_DOOR_OPEN); // open the tower door
         startTime = time;
         while (time < startTime+700){};   // wait 7/10th of a second
         FAN1 = 1;   // turn on the fan arm's fan
         startTime = time;   // update the time
         while (time < startTime + 250){};
         FAN1 = 0;
+        rotateTowerDoor(TOWER_DOOR_OPEN); // open the tower door
         startTime = time;
         while (time < startTime + 750){};
         FAN1 = 1;
@@ -346,6 +372,25 @@ void blowCubeInAndOut()
         rotateFanArm(FAN_ARM_VERTICAL); // rotate fan arm back up
         while (time < startTime+200){};   // wait 2/10th of a second
         rotateTowerDoor(TOWER_DOOR_CLOSED); // close the tower door
+
+        int count = 0;
+        while (numCrates == crates) {
+            rotateFanArm(FAN_ARM_HORIZONTAL); // rotate fan arm back up
+            startTime = time;
+            while (time < startTime + 400){};
+            FAN1 = 1;
+            startTime = time;
+            while (time < startTime + 250){};
+            FAN1 = 0;
+            rotateFanArm(FAN_ARM_VERTICAL); // rotate fan arm back up
+            startTime = time;
+            while (time < startTime + 600){};
+            count++;
+            if (count > 1 || crateInMiddle == 1)
+                break;
+        }
+        
+        // blow out
         startTime = time;
         while (time < startTime + 200){};
         FAN2 = 1;   // turn the tower fan on
@@ -409,24 +454,45 @@ void driveDistance(float inches)
     }
 }
 
-void turnAngle(float degrees)    // 3 = CCW, 4 = CW
+void turnAngle(int degrees)    // 3 = CCW, 4 = CW
 {
     // reset encoders
     getEncoder1(TRUE);getEncoder2(TRUE);
     getEncoder1(TRUE);getEncoder2(TRUE);
+
+    globalAngle += degrees;
+
+    if (abs(degrees) < 45)
+        cps = CPS_SUPER_SLOW;
     
     if (degrees < 0) {
         DIR1 = 1;
         DIR2 = 0;
         drivingState = CCW;
-        terminalDegrees = -1*degrees;
     }
     else {
         DIR1 = 0;
         DIR2 = 1;
         drivingState = CW;
-        terminalDegrees = degrees;
     }
+    terminalDegrees = abs(degrees);
+}
+
+void resetAngle()
+{
+    int localAngle;
+    if (globalAngle < 0)
+        localAngle = 360 - ((-globalAngle) % 360);
+    else
+        localAngle = globalAngle % 360;
+    
+    if (localAngle < 180)
+        globalAngle = localAngle;
+    else
+        globalAngle = -(360-localAngle);
+
+    turnAngle(-globalAngle);
+
 }
 
 void driveToCenter()
