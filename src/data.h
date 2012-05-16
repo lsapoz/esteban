@@ -2,19 +2,22 @@
 #define __DATA_H_
 
 // Constants
+# define PI 3.14159
 #define CORE_TICKS 40000            // 40,000 ticks (1/1000 second)
 #define COUNTS_PER_REVOLUTION 8192  // motor's CPR with 4x quadrature
 #define MAX_PWM 1250                // 100% duty cycle
 #define WHEEL_RADIUS 45             // 45 mm
 #define WHEELBASE 174.82            // 174.82 mm
+#define COLOR_BASE 150               // 150 mm
 #define INERTIA_COUNTS 500          // extra counts recorded after motors stop
 
 // Formulas
-#define COUNTS_TO_MM(c) (2*3.14159*WHEEL_RADIUS*((float)c/COUNTS_PER_REVOLUTION))
-#define MM_TO_COUNTS(m) ((float)(COUNTS_PER_REVOLUTION*m)/(2*3.14159*WHEEL_RADIUS))
+#define COUNTS_TO_MM(c) (2*PI*WHEEL_RADIUS*((float)c/COUNTS_PER_REVOLUTION))
+#define MM_TO_COUNTS(m) ((float)(COUNTS_PER_REVOLUTION*m)/(2*PI*WHEEL_RADIUS))
 #define MM_TO_IN(m) (0.03937*(float)m)
 #define IN_TO_MM(i) (25.4*(float)i)
 #define POSITION_TO_ANGLE(p,q) (360*(WHEEL_RADIUS/WHEELBASE)*(((float)p+q)/COUNTS_PER_REVOLUTION))
+#define RADIANS_TO_DEGREES(r) (r*180/PI)
 
 // Timers
 #define TMR4_FREQ 250                           // 250 Hz
@@ -30,9 +33,6 @@
 //#define Kd 502
 //#define Ki 53
 //#define K0 100
-#define CPS_FAST 8000.0    // 8000 encoder ticks per second
-#define CPS_SLOW 4000.0
-#define CPS_SUPER_SLOW 3000.0
 #define WINDUP 1000    // windup for the motion control loop
 
 // Driving States
@@ -42,13 +42,25 @@
 #define CCW 3
 #define CW 4
 #define COLOR_SWITCH 5
-#define STOP 6
+
+// Driving Modes  -  0 is stationary
+#define FAST 1
+#define MEDIUM 2
+#define SLOW 3
+#define CORRECTER 4
+
+// Speeds
+#define CPS_FAST 8000.0    // 8000 encoder ticks per second
+#define CPS_MEDIUM 5000.0
+#define CPS_SLOW 3000.0
+#define CPS_CORRECTER 1500.0
 
 // Reset States
-#define NONE 0
-#define SOFT 1
-#define HARD 2
-#define BOUNDARY_COUNTS 2000
+#define R_NONE 0      // not resetting
+#define R_SLOW 1      // begin driving slow
+#define R_CORRECTER 2   // begin reversing
+#define R_STOP 3     // stop
+#define BOUNDARY_COUNTS 3000
 #define BOUNDARY_ANGLE 45
 
 // Color States
@@ -60,23 +72,26 @@
 // Voltage Thresholds
 #define CS1_BP_THRESHOLD 150     // threshold between black and purple for CS1
 #define CS1_PW_THRESHOLD 550     // threshold betweeb purple and white for CS1
-#define CS2_BP_THRESHOLD 300     // threshold between black and purple for CS2
-#define CS2_PW_THRESHOLD 850     // threshold betweeb purple and white for CS2
+#define CS2_BP_THRESHOLD 100     // threshold between black and purple for CS2
+#define CS2_PW_THRESHOLD 400     // threshold betweeb purple and white for CS2
 #define BB_THRESHOLD 100         // break beam threshold
+#define LASER_THRESHOLD 100      // threshold for laser
 
 // Fan Arm
 #define FAN_ARM_VERTICAL 2950    // "Fan Arm - Vertical" servo pwm
 #define FAN_ARM_HORIZONTAL 1615  // "Fan Arm - Horizontal" servo pwm
 
 // Tower Door
-#define TOWER_DOOR_OPEN 1955     // "Tower Door - Open" servo pwm
-#define TOWER_DOOR_CLOSED 2765   // "Tower Door - Closed" servo pwm
+#define TOWER_DOOR_OPEN 1935     // "Tower Door - Open" servo pwm
+#define TOWER_DOOR_CLOSED 2745   // "Tower Door - Closed" servo pwm
 #define TOWER_DOOR_AJAR 2425     // "Tower Door - Ajar" servo pwm
 
 // Laser
-#define LASER_LEFT 850     // "Tower Door - Open" servo pwm
-#define LASER_RIGHT 2700   // "Tower Door - Closed" servo pwm
+#define LASER_LEFT 1168
+#define LASER_RIGHT 2568
+#define LASER_CENTER 1868
 #define LASER_STEP 10
+#define LASER_STEP_ANGLE 0.85
 
 // Motor Pins
 #define DIR1 LATDbits.LATD5      //motor 1 direction pin - D5
@@ -122,7 +137,7 @@
 
 // Global Variables
 long time;          // time in milliseconds
-int drivingState;   // one of 5 states
+int drivingState, drivingMode;   // one of 5 states
 int startingColor;  // "home" color
 int currentColor, currentColor1, currentColor2;  // current readings of the color sensors
 int lastColor;      // used for driving to center
@@ -132,7 +147,7 @@ float cps;
 int numCrates;                     // the number of crates in the tower
 int crateInFront, crateInMiddle;   // booleans for front and middle break beams
 
-long long position1, position2;         // current position of tne encoders
+long position1, position2;         // current position of tne encoders
 float terminalCounts1;
 int terminalDegrees; // these dictate when to stop driving
 int globalAngle;

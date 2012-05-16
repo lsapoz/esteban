@@ -17,7 +17,7 @@ void initCoreTimer(void)
 void initTimer4Interrupt(void)
 {
     OpenTimer4(T4_ON | T4_PS_1_256, TMR4_PR); // 80000000Hz / 256ps / 250Hz = 1250
-    mT4SetIntPriority(3); // set Timer4 Interrupt Priority
+    mT4SetIntPriority(5); // set Timer4 Interrupt Priority
     mT4ClearIntFlag(); // clear interrupt flag
     mT4IntEnable(1); // enable timer4 interrupts
 }
@@ -26,7 +26,7 @@ void initTimer4Interrupt(void)
 void initTimer5Interrupt(void)
 {
     OpenTimer5(T5_ON | T5_PS_1_256, TMR5_PR); // 80000000Hz / 256ps / 10Hz = 31250
-    mT5SetIntPriority(3); // set Timer5 Interrupt Priority
+    mT5SetIntPriority(4); // set Timer5 Interrupt Priority
     mT5ClearIntFlag(); // clear interrupt flag
     mT5IntEnable(1); // enable timer5 interrupts
 }
@@ -155,9 +155,9 @@ void initEncoderSPI(void) {
 }
 
 // function for getting the current encoder1 counts
-long long getEncoder1(int reset) {
+long getEncoder1(int reset) {
     static int curr=0, last=0, data=0;
-    static long long total_count=0;
+    static long total_count=0;
     
     SLAVE_SELECT1 = 0;      //tie slave select low
 
@@ -191,9 +191,9 @@ long long getEncoder1(int reset) {
 }
 
 // function for getting the current encoder2 counts
-long long getEncoder2(int reset) {
+long getEncoder2(int reset) {
     static int curr=0, last=0, data=0;
-    static long long total_count=0;
+    static long total_count=0;
 
     SLAVE_SELECT2 = 0;      //tie slave select low
 
@@ -236,33 +236,52 @@ void rotateTowerDoor(int servoPos)
     SetDCOC4PWM(servoPos);
 }
 
-void scanLaser()
+int sweepLaser()
 {
+    LASER_LIGHT = 0;
     long lastTime;
     int pwm = LASER_LEFT;
-    int arrsize = ((LASER_RIGHT-LASER_LEFT)/LASER_STEP);
-    int ptON[arrsize], ptOFF[arrsize], ptDIF[arrsize];
-    int i = 0;
+    //int arrsize = ((LASER_RIGHT-LASER_LEFT)/LASER_STEP);
+    //int ptON[arrsize], ptOFF[arrsize], ptDIF[arrsize];
+    int ptON, ptOFF;
+    int i = 0,  servoPos = 0;
+    long sum = 0;
+    
+    lastTime = time;
+    SetDCOC5PWM(LASER_LEFT);
+    while (time < lastTime + 1000);
+    
     
     while (pwm != LASER_RIGHT) {
-        ptOFF[i] = ReadADC10(LASER_PT);
+        ptOFF = ReadADC10(LASER_PT);
         LASER_LIGHT = 1;
         lastTime = time;
         while (time < lastTime + 2){};
-        ptON[i] = ReadADC10(LASER_PT);
+        ptON = ReadADC10(LASER_PT);
         LASER_LIGHT = 0;
 
         pwm += LASER_STEP;
         SetDCOC5PWM(pwm);
         lastTime = time;
-        while (time < lastTime + 3){};
+        while (time < lastTime + 4){};
 
-        ptDIF[i] = ptON[i] - ptOFF[i];
-        sprintf(NU32_RS232OutBuffer,"%d\n", ptDIF[i]/2);
-        WriteString(UART1, NU32_RS232OutBuffer);
-        i++;
+        if ((ptON - ptOFF) > LASER_THRESHOLD) {
+            sum += (pwm-LASER_STEP);
+            i++;
+        }
+
+
+        //sprintf(NU32_RS232OutBuffer,"%d\n", ptDIF[i]/2);
+        //sprintf(NU32_RS232OutBuffer,"%d\n", response[i]*100);
+        //WriteString(UART1, NU32_RS232OutBuffer);
+        //i++;
     }
+    if (i != 0)
+        servoPos = sum / i;
+    else
+        servoPos = LASER_CENTER;
     SetDCOC5PWM(LASER_LEFT);
+    return servoPos;
 
 }
 
@@ -441,6 +460,8 @@ void driveDistance(float inches)
     getEncoder1(TRUE);getEncoder2(TRUE);
     getEncoder1(TRUE);getEncoder2(TRUE);
 
+    drivingMode = FAST;
+
     if (inches >= 0) {
         DIR1 = 0;
         DIR2 = 0;
@@ -450,7 +471,7 @@ void driveDistance(float inches)
         DIR1 = 1;
         DIR2 = 1;
         drivingState = BACKWARD;
-        terminalCounts1 = MM_TO_COUNTS(IN_TO_MM(-1*inches))-INERTIA_COUNTS;
+        terminalCounts1 = MM_TO_COUNTS(IN_TO_MM(-inches))-INERTIA_COUNTS;
     }
 }
 
@@ -462,8 +483,12 @@ void turnAngle(int degrees)    // 3 = CCW, 4 = CW
 
     globalAngle += degrees;
 
-    if (abs(degrees) < 45)
-        cps = CPS_SUPER_SLOW;
+    if (abs(degrees) <= 30)
+        drivingMode = SLOW;
+    else if (abs(degrees) < 45)
+        drivingMode = MEDIUM;
+    else
+        drivingMode = FAST;
     
     if (degrees < 0) {
         DIR1 = 1;
@@ -497,6 +522,10 @@ void resetAngle()
 
 void driveToCenter()
 {
+    // reset encoders
+    getEncoder1(TRUE);getEncoder2(TRUE);
+    getEncoder1(TRUE);getEncoder2(TRUE);
+
     lastColor = currentColor;
     if (lastColor == startingColor) {
         DIR1 = 0;
@@ -505,5 +534,14 @@ void driveToCenter()
         DIR1 = 1;
         DIR2 = 1;
     }
+
+    drivingMode = FAST;
     drivingState = COLOR_SWITCH;
+}
+
+void faceZone()
+{
+    int thetaPWM = sweepLaser();
+    int theta = LASER_STEP_ANGLE*(thetaPWM - LASER_CENTER)/LASER_STEP;
+    turnAngle(theta);
 }

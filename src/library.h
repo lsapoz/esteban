@@ -14,13 +14,13 @@ void initOutputCompare(void);
 
 // Encoder functions
 void initEncoderSPI(void);
-long long getEncoder1(int reset);
-long long getEncoder2(int reset);
+long getEncoder1(int reset);
+long getEncoder2(int reset);
 
 // Servo functions
 void rotateFanArm(int servoPos);
 void rotateTowerDoor(int servoPos);
-void scanLaser();
+int sweepLaser();
 
 // Fan functions
 void blowCubeIn();
@@ -35,4 +35,5 @@ void driveDistance(float inches);
 void turnAngle(int degrees);
 void resetAngle();
 void driveToCenter();
+void faceZone();
 #endif /* __LIBRARY_H_ */
