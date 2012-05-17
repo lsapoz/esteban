@@ -34,7 +34,7 @@ void initTimer5Interrupt(void)
 // initalize the digital inputs with pullup resistors, and turn change notifcation ISR on
 void initChangeNotification(void)
 {
-    mPORTBSetPinsDigitalIn(BIT_0| BIT_1 | BIT_2 | BIT_3); // Make B0, B1, B2, B3 digital inputs
+    //mPORTBSetPinsDigitalIn(BIT_0| BIT_1 | BIT_2 | BIT_3); // Make B0, B1, B2, B3 digital inputs
     mCNOpen(CN_ON, CN2_ENABLE | CN3_ENABLE | CN4_ENABLE | CN5_ENABLE, CN2_PULLUP_ENABLE | CN3_PULLUP_ENABLE | CN4_PULLUP_ENABLE | CN5_PULLUP_ENABLE);
 
     PORTB;  // Clear any mismatches that may already be there by reading the correct ports
@@ -69,7 +69,7 @@ void initAnalogInput(void)
 
     // define setup parameters for OpenADC10
     // ADC ref external | disable offset test | enable scan mode | perform 8 samples | use one buffer | use MUXA mode
-    #define PARAM2  ADC_VREF_AVDD_AVSS | ADC_OFFSET_CAL_DISABLE | ADC_SCAN_ON | ADC_SAMPLES_PER_INT_8 | ADC_ALT_BUF_OFF | ADC_ALT_INPUT_OFF
+    #define PARAM2  ADC_VREF_AVDD_AVSS | ADC_OFFSET_CAL_DISABLE | ADC_SCAN_ON | ADC_SAMPLES_PER_INT_12 | ADC_ALT_BUF_OFF | ADC_ALT_INPUT_OFF
     // ** If you want to read more than 1 pin, change the 1 in ADC_SAMPLES_PER_INT_1 to the total number of pins you want
 
     // define setup parameters for OpenADC10
@@ -77,14 +77,14 @@ void initAnalogInput(void)
     #define PARAM3  ADC_CONV_CLK_INTERNAL_RC | ADC_SAMPLE_TIME_15
 
     // define setup parameters for OpenADC10
-    #define PARAM4	ENABLE_AN6_ANA | ENABLE_AN7_ANA | ENABLE_AN8_ANA | ENABLE_AN9_ANA | ENABLE_AN10_ANA | ENABLE_AN11_ANA | ENABLE_AN12_ANA | ENABLE_AN13_ANA
+    #define PARAM4	ENABLE_AN0_ANA | ENABLE_AN1_ANA| ENABLE_AN2_ANA | ENABLE_AN3_ANA | ENABLE_AN6_ANA | ENABLE_AN7_ANA | ENABLE_AN8_ANA | ENABLE_AN9_ANA | ENABLE_AN10_ANA | ENABLE_AN11_ANA | ENABLE_AN12_ANA | ENABLE_AN13_ANA
     // ** If you want to read more pins, | (or) them together, like:
     // ** ENABLE_AN3_ANA | ENABLE_AN5_ANA | ENABLE_AN6_ANA
     // ** to read B3, B5 and B6
 
     // define setup parameters for OpenADC10
     // assign channels you don't want to scan
-    #define PARAM5	SKIP_SCAN_AN0 | SKIP_SCAN_AN1 | SKIP_SCAN_AN2 | SKIP_SCAN_AN3 | SKIP_SCAN_AN4 | SKIP_SCAN_AN5 | SKIP_SCAN_AN14 | SKIP_SCAN_AN15
+    #define PARAM5	SKIP_SCAN_AN4 | SKIP_SCAN_AN5 | SKIP_SCAN_AN14 | SKIP_SCAN_AN15
     // ** This one has all the pins that are not in PARAM4
 
     // use ground as neg ref for mux A, don't worry about it
@@ -158,6 +158,7 @@ void initEncoderSPI(void) {
 long getEncoder1(int reset) {
     static int curr=0, last=0, data=0;
     static long total_count=0;
+    long adjusted_count;
     
     SLAVE_SELECT1 = 0;      //tie slave select low
 
@@ -187,7 +188,8 @@ long getEncoder1(int reset) {
     if (reset)
         total_count = 0;
 
-    return total_count;
+    adjusted_count = LEFT_WHEEL_ADJUST * total_count;
+    return adjusted_count;
 }
 
 // function for getting the current encoder2 counts
@@ -244,31 +246,35 @@ int sweepLaser()
     //int arrsize = ((LASER_RIGHT-LASER_LEFT)/LASER_STEP);
     //int ptON[arrsize], ptOFF[arrsize], ptDIF[arrsize];
     int ptON, ptOFF;
-    int i = 0,  servoPos = 0;
+    int i = 0,  servoPos = 0, j = 0;
     long sum = 0;
     
     lastTime = time;
     SetDCOC5PWM(LASER_LEFT);
     while (time < lastTime + 1000);
     
-    
     while (pwm != LASER_RIGHT) {
         ptOFF = ReadADC10(LASER_PT);
         LASER_LIGHT = 1;
         lastTime = time;
-        while (time < lastTime + 2){};
+        while (time < lastTime + 3){};
         ptON = ReadADC10(LASER_PT);
         LASER_LIGHT = 0;
 
         pwm += LASER_STEP;
         SetDCOC5PWM(pwm);
         lastTime = time;
-        while (time < lastTime + 4){};
+        while (time < lastTime + 3){};
 
         if ((ptON - ptOFF) > LASER_THRESHOLD) {
             sum += (pwm-LASER_STEP);
             i++;
-        }
+            j = 0;
+        } else
+            j++;
+
+        if (i+j > 50 && i > 15)
+            break;
 
 
         //sprintf(NU32_RS232OutBuffer,"%d\n", ptDIF[i]/2);
@@ -280,7 +286,8 @@ int sweepLaser()
         servoPos = sum / i;
     else
         servoPos = LASER_CENTER;
-    SetDCOC5PWM(LASER_LEFT);
+    SetDCOC5PWM(servoPos);
+    LASER_LIGHT = 1;
     return servoPos;
 
 }
@@ -544,4 +551,63 @@ void faceZone()
     int thetaPWM = sweepLaser();
     int theta = LASER_STEP_ANGLE*(thetaPWM - LASER_CENTER)/LASER_STEP;
     turnAngle(theta);
+}
+
+void resetAngleOnWall()
+{
+    int leave = 1;
+
+    while (leave != 0) {
+        // reset encoders
+        getEncoder1(TRUE);getEncoder2(TRUE);
+        getEncoder1(TRUE);getEncoder2(TRUE);
+
+        DIR1 = 0;
+        DIR2 = 0;
+        drivingMode = MEDIUM;
+        drivingState = RESET_ANGLE_WALL;
+        while (drivingState != STATIONARY){};
+        if (EN1 != 1 || EN2 != 1) {
+            int m1 = EN1;
+            EN1 = 1;
+            EN2 = 1;
+            driveDistance(-1.5);
+            while (drivingState != STATIONARY){};
+            if (m1 == 0)
+                turnAngle(-15);
+            else
+                turnAngle(15);
+            while (drivingState != STATIONARY){};
+        } else
+            leave = 0;
+    }
+}
+
+void resetAngleInZone()
+{
+    int leave = 1;
+    while (leave != 0) {
+        // reset encoders
+        getEncoder1(TRUE);getEncoder2(TRUE);
+        getEncoder1(TRUE);getEncoder2(TRUE);
+
+        DIR1 = 1;
+        DIR2 = 1;
+        drivingMode = MEDIUM;
+        drivingState = RESET_ANGLE_ZONE;
+        while (drivingState != STATIONARY){};
+        if (EN1 != 1 || EN2 != 1) {
+            int m1 = EN1;
+            EN1 = 1;
+            EN2 = 1;
+            driveDistance(1.5);
+            while (drivingState != STATIONARY){};
+            if (m1 == 0)
+                turnAngle(15);
+            else
+                turnAngle(-15);
+            while (drivingState != STATIONARY){};
+        } else
+            leave = 0;
+    }
 }

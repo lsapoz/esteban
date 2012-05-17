@@ -36,4 +36,6 @@ void turnAngle(int degrees);
 void resetAngle();
 void driveToCenter();
 void faceZone();
+void resetAngleOnWall();
+void resetAngleInZone();
 #endif /* __LIBRARY_H_ */

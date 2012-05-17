@@ -10,6 +10,7 @@
 #define WHEELBASE 174.82            // 174.82 mm
 #define COLOR_BASE 150               // 150 mm
 #define INERTIA_COUNTS 500          // extra counts recorded after motors stop
+#define LEFT_WHEEL_ADJUST 0.99      // leftwheel adjustment constant
 
 // Formulas
 #define COUNTS_TO_MM(c) (2*PI*WHEEL_RADIUS*((float)c/COUNTS_PER_REVOLUTION))
@@ -42,24 +43,28 @@
 #define CCW 3
 #define CW 4
 #define COLOR_SWITCH 5
+#define RESET_ANGLE_WALL 6
+#define RESET_ANGLE_ZONE 7
 
 // Driving Modes  -  0 is stationary
 #define FAST 1
 #define MEDIUM 2
 #define SLOW 3
 #define CORRECTER 4
+#define PLAID 5
 
 // Speeds
+#define CPS_PLAID 10000.0
 #define CPS_FAST 8000.0    // 8000 encoder ticks per second
 #define CPS_MEDIUM 5000.0
 #define CPS_SLOW 3000.0
 #define CPS_CORRECTER 1500.0
 
 // Reset States
-#define R_NONE 0      // not resetting
-#define R_SLOW 1      // begin driving slow
+#define R_NONE 0        // not resetting
+#define R_SLOW 1        // begin driving slow
 #define R_CORRECTER 2   // begin reversing
-#define R_STOP 3     // stop
+#define R_STOP 3        // stop
 #define BOUNDARY_COUNTS 3000
 #define BOUNDARY_ANGLE 45
 
@@ -75,7 +80,8 @@
 #define CS2_BP_THRESHOLD 100     // threshold between black and purple for CS2
 #define CS2_PW_THRESHOLD 400     // threshold betweeb purple and white for CS2
 #define BB_THRESHOLD 100         // break beam threshold
-#define LASER_THRESHOLD 100      // threshold for laser
+#define LASER_THRESHOLD 25      // threshold for laser
+#define COLLISION_THRESHOLD 200  // threshold for collision detectors
 
 // Fan Arm
 #define FAN_ARM_VERTICAL 2950    // "Fan Arm - Vertical" servo pwm
@@ -90,8 +96,8 @@
 #define LASER_LEFT 1168
 #define LASER_RIGHT 2568
 #define LASER_CENTER 1868
-#define LASER_STEP 10
-#define LASER_STEP_ANGLE 0.85
+#define LASER_STEP 5
+#define LASER_STEP_ANGLE 0.425
 
 // Motor Pins
 #define DIR1 LATDbits.LATD5      //motor 1 direction pin - D5
@@ -104,7 +110,7 @@
 #define SLAVE_SELECT2 LATFbits.LATF3      // pin F3
 
 // "Smallest" Analog Pin being read
-#define SAP 6   // pin B6 is the "smallest" analog input scanned
+#define SAP 2  
 
 // Laser Pins
 #define LASER_LIGHT LATDbits.LATD10          // pin D10
@@ -129,10 +135,10 @@
 #define BB_TOWER_TOP 13 - SAP        // pin B13
 
 // Collision Detection Pins
-#define COLLISION_TOP_LEFT PORTBbits.RB0   // pin B0 - CN2
-#define COLLISION_TOP_RIGHT PORTBbits.RB1  // pin B1 - CN3
-#define COLLISION_BOTTOM_LEFT PORTBbits.RB2   // pin B2 - CN4
-#define COLLISION_BOTTOM_RIGHT PORTBbits.RB3  // pin B3 - CN5
+#define COLLISION_TOP_LEFT 0   // pin B0 - CN2
+#define COLLISION_TOP_RIGHT 1  // pin B1 - CN3
+#define COLLISION_BOTTOM_LEFT 2   // pin B2 - CN4
+#define COLLISION_BOTTOM_RIGHT 3  // pin B3 - CN5
 
 
 // Global Variables
@@ -149,8 +155,11 @@ int crateInFront, crateInMiddle;   // booleans for front and middle break beams
 
 long position1, position2;         // current position of tne encoders
 float terminalCounts1;
-int terminalDegrees; // these dictate when to stop driving
+float terminalDegrees; // these dictate when to stop driving
 int globalAngle;
+
+// collision variables
+int collisionBottomLeft, collisionBottomRight, collisionTopLeft, collisionTopRight;
 
 //Motion Control - Temporarily global variables - will become defined constants
 float Kp;  // proportional gain for motion control loop
