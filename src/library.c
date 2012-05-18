@@ -430,15 +430,34 @@ void blowCubeInAndOut()
 void checkForCubes()
 {
     int oldMode;
+    int stopTime;
     if (crateInMiddle == 1 && numCrates < 3) {
         oldMode = drivingMode;
         drivingMode = STATIONARY;
+
+        // inch back
+        float remaining = terminalCounts1 - position1;
+        terminalCounts1 = 0;
+        stopTime = time;
+        while (time < stopTime + 250){};
+        driveDistance(-1.5,MEDIUM);
+        while(drivingState != STATIONARY){};
+        
         blowCubeIn();
+        driveDistance((MM_TO_IN(COUNTS_TO_MM(remaining))),oldMode);
         drivingMode = oldMode;
     }
     if (crateInMiddle == 1 && numCrates == 3) {
         oldMode = drivingMode;
         drivingMode = STATIONARY;
+
+        // inch back
+        float remaining = terminalCounts1 - position1;
+        terminalCounts1 = 0;
+        driveDistance(-1,MEDIUM);
+        while(drivingState != STATIONARY){};
+        driveDistance((MM_TO_IN(COUNTS_TO_MM(remaining))),oldMode);
+
         blowCubeUp();
         drivingMode = oldMode;
         goBack = 1;
@@ -556,7 +575,7 @@ void driveToCenter()
         DIR2 = 1;
     }
 
-    drivingMode = FAST;
+    drivingMode = PLAID;
     drivingState = COLOR_SWITCH;
 }
 
@@ -627,6 +646,9 @@ void resetAngleInZone()
 
 void driveToZone()
 {
+    int oldMode, oldState;
+    float oldCounts, currentCounts;
+
     int thetaPWM = sweepLaser(6);
     int theta = LASER_STEP_ANGLE*(thetaPWM - LASER_CENTER)/LASER_STEP;
     turnAngle(theta);
@@ -640,15 +662,34 @@ void driveToZone()
     theta = LASER_STEP_ANGLE*(thetaPWM - LASER_CENTER)/LASER_STEP;
     turnAngle(theta);
     while(drivingState != STATIONARY){};
-    dist = (-14.0/cos(DEGREES_TO_RADIANS(globalAngle)));
+    //dist = (-14.0/cos(DEGREES_TO_RADIANS(globalAngle)));
+    dist = (-24.0/cos(DEGREES_TO_RADIANS(globalAngle)));
     
     driveDistance(dist,PLAID);
     while(drivingState != STATIONARY){};
 
-    resetAngle();
-    while(drivingState != STATIONARY){};
-    driveDistance(-12, PLAID);
-    while(drivingState != STATIONARY){};
+    driveDistance(-8,MEDIUM);
+    while(drivingState != STATIONARY){
+        float remaining;
+        if (collisionBottomLeft == 1) {
+            remaining = terminalCounts1 - position1;
+            terminalCounts1 = 0;
+            turnAngle(-30);
+            while(drivingState != STATIONARY){};
+            driveDistance(-(MM_TO_IN(COUNTS_TO_MM(remaining))),PLAID);
+        } else if (collisionBottomRight == 1) {
+            remaining = terminalCounts1 - position1;
+            terminalCounts1 = 0;
+            turnAngle(30);
+            while(drivingState != STATIONARY){};
+            driveDistance(-(MM_TO_IN(COUNTS_TO_MM(remaining))),PLAID);
+        }
+    }
+
+    //resetAngle();
+    //while(drivingState != STATIONARY){};
+    //driveDistance(-12, PLAID);
+    //while(drivingState != STATIONARY){};
     resetAngleInZone();
     blowCubesOut();
     blowCubeInAndOut();
@@ -722,6 +763,18 @@ void firstSweep2()
         checkForCubes();
         if (goBack == 1)
             return;
+    }   
+}
+
+void firstSweep3()
+{
+    turnAngle(27);
+    while(drivingState != STATIONARY){};
+
+    driveDistance(96,PLAID);    // drive all the way
+    while(drivingState != STATIONARY) {
+        checkForCubes();
+        if (goBack == 1)
+            return;
     }
-        
 }

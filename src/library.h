@@ -43,4 +43,5 @@ void driveToZone();
 // Strategy Functions
 void firstSweep1();
 void firstSweep2();
+void firstSweep3();
 #endif /* __LIBRARY_H_ */

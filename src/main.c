@@ -88,10 +88,59 @@ int main(void)
 //            blowCubeInAndOut();
 //        }
 
+//        if (!NU32USER) {
+//            //driveDistance(24,PLAID);
+//            //turnAngle(90);
+//            firstSweep2();
+//            while (drivingState != STATIONARY){};
+//            resetAngle();
+//            while (drivingState != STATIONARY){};
+//            driveToCenter();
+//            while (drivingState != STATIONARY){};
+//            driveToZone();
+//            while (drivingState != STATIONARY){};
+//            driveDistance(24,MEDIUM);
+//            while (drivingState != STATIONARY){};
+//            turnAngle(70);
+//            while (drivingState != STATIONARY){};
+//            resetAngleOnWall(RIGHT);
+//            while (drivingState != STATIONARY){};
+//            driveDistance(-6,PLAID);
+//            while (drivingState != STATIONARY){};
+//            resetAngle();
+//        }
+        char message[100];
+//        if (!NU32USER) {
+//            driveDistance(-12,PLAID);
+//            while(drivingState != STATIONARY) {
+//                float remaining;
+//                if (collisionBottomLeft == 1) {
+//                    remaining = terminalCounts1 - position1;
+//                    terminalCounts1 = 0;
+//                    turnAngle(-30);
+//                    while(drivingState != STATIONARY){};
+//                    driveDistance(-(MM_TO_IN(COUNTS_TO_MM(remaining))),PLAID);
+//
+////                    sprintf(message, "%f %f %f\r\n", remaining,COUNTS_TO_MM(remaining),MM_TO_IN(COUNTS_TO_MM(remaining)));
+////                    NU32_WriteUART1(message);
+//                } else if (collisionBottomRight == 1) {
+//                    remaining = terminalCounts1 - position1;
+//                    terminalCounts1 = 0;
+//                    turnAngle(30);
+//                    while(drivingState != STATIONARY){};
+//                    driveDistance(-(MM_TO_IN(COUNTS_TO_MM(remaining))),PLAID);
+//                }
+//            }
+//        }
+
         if (!NU32USER) {
-            //driveDistance(24,PLAID);
-            //turnAngle(90);
-            firstSweep2();
+//            driveDistance(24,PLAID);    // drive to middle line, our side
+//            while(drivingState != STATIONARY) {
+//                checkForCubes();
+//                if (goBack == 1)
+//                    return;
+//            }
+            firstSweep3();
             while (drivingState != STATIONARY){};
             resetAngle();
             while (drivingState != STATIONARY){};
@@ -99,15 +148,9 @@ int main(void)
             while (drivingState != STATIONARY){};
             driveToZone();
             while (drivingState != STATIONARY){};
-            driveDistance(24,MEDIUM);
+            
+            //driveToCenter();
             while (drivingState != STATIONARY){};
-            turnAngle(70);
-            while (drivingState != STATIONARY){};
-            resetAngleOnWall(RIGHT);
-            while (drivingState != STATIONARY){};
-            driveDistance(-6,PLAID);
-            while (drivingState != STATIONARY){};
-            resetAngle();
         }
 }
     return 0;
@@ -673,6 +716,12 @@ void __ISR(_UART_1_VECTOR, ipl2) IntUart1Handler(void)
             FAN2 = !FAN2;
         if (data == 's')
             sweepLaser(3);
+        if (data == 't')
+            turnAngle(90);
+        if (data == 'y')
+            turnAngle(-90);
+        if (data == 'u')
+            resetAngle();
 
         // Clear the RX interrupt Flag
         INTClearFlag(INT_SOURCE_UART_RX(UART1));
