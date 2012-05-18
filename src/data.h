@@ -17,8 +17,9 @@
 #define MM_TO_COUNTS(m) ((float)(COUNTS_PER_REVOLUTION*m)/(2*PI*WHEEL_RADIUS))
 #define MM_TO_IN(m) (0.03937*(float)m)
 #define IN_TO_MM(i) (25.4*(float)i)
-#define POSITION_TO_ANGLE(p,q) (360*(WHEEL_RADIUS/WHEELBASE)*(((float)p+q)/COUNTS_PER_REVOLUTION))
-#define RADIANS_TO_DEGREES(r) (r*180/PI)
+#define POSITION_TO_ANGLE(p,q) (360.0*(WHEEL_RADIUS/WHEELBASE)*(((float)p+q)/COUNTS_PER_REVOLUTION))
+#define RADIANS_TO_DEGREES(r) (r*180.0/PI)
+#define DEGREES_TO_RADIANS(d) (d*PI/180.0)
 
 // Timers
 #define TMR4_FREQ 250                           // 250 Hz
@@ -30,10 +31,6 @@
 #define TMR5_PR SYS_FREQ/TMR5_PS/TMR5_FREQ      //Period Register
 
 // Motion Control
-//#define Kp 324
-//#define Kd 502
-//#define Ki 53
-//#define K0 100
 #define WINDUP 1000    // windup for the motion control loop
 
 // Driving States
@@ -74,12 +71,16 @@
 #define BLACK 2
 #define BOTH 3
 
+// Walls
+#define LEFT 0
+#define RIGHT 1
+
 // Voltage Thresholds
 #define CS1_BP_THRESHOLD 150     // threshold between black and purple for CS1
 #define CS1_PW_THRESHOLD 550     // threshold betweeb purple and white for CS1
 #define CS2_BP_THRESHOLD 100     // threshold between black and purple for CS2
 #define CS2_PW_THRESHOLD 400     // threshold betweeb purple and white for CS2
-#define BB_THRESHOLD 100         // break beam threshold
+#define BB_THRESHOLD 50         // break beam threshold
 #define LASER_THRESHOLD 25      // threshold for laser
 #define COLLISION_THRESHOLD 200  // threshold for collision detectors
 
@@ -89,7 +90,7 @@
 
 // Tower Door
 #define TOWER_DOOR_OPEN 1935     // "Tower Door - Open" servo pwm
-#define TOWER_DOOR_CLOSED 2745   // "Tower Door - Closed" servo pwm
+#define TOWER_DOOR_CLOSED 2725   // "Tower Door - Closed" servo pwm
 #define TOWER_DOOR_AJAR 2425     // "Tower Door - Ajar" servo pwm
 
 // Laser
@@ -152,6 +153,9 @@ float cps;
 
 int numCrates;                     // the number of crates in the tower
 int crateInFront, crateInMiddle;   // booleans for front and middle break beams
+int goBack;                        // 4 captured
+int cubesDeposited;
+int sweepRound;
 
 long position1, position2;         // current position of tne encoders
 float terminalCounts1;

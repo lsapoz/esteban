@@ -13,6 +13,7 @@ int main(void)
 
     // initalize global variables
     time = 0;
+    goBack = 0;
     drivingState = STATIONARY;
     drivingMode = STATIONARY;
     numCrates = 0;
@@ -21,6 +22,8 @@ int main(void)
     terminalCounts1 = 0;
     terminalDegrees = 0;
     globalAngle = 0;
+    cubesDeposited = 0;
+    sweepRound = 1;
 
     collisionBottomLeft = 0;
     collisionBottomRight = 0;
@@ -28,10 +31,10 @@ int main(void)
     collisionTopRight = 0;
 
     // set temporary motion control variables
-    Kp = 45;
-    Kd = 300;
-    Ki = 30;
-    Kt = 12;
+    Kp = 30;
+    Kd = 120;
+    Ki = 5;
+    Kt = 10;
     K0 = 100;
 
     // init everything for the LCD
@@ -66,8 +69,6 @@ int main(void)
     sprintf(NU32_RS232OutBuffer,"Esteban DC\r\n");
     NU32_WriteUART1(NU32_RS232OutBuffer);
 
-//    drivingState = FORWARD;
-//    terminalCounts1 = 60000;
     long blah = time;
     while(1) {
 //        if (crateInMiddle == 1 && numCrates < 3) {
@@ -87,49 +88,28 @@ int main(void)
 //            blowCubeInAndOut();
 //        }
 
-//        while (time < blah + 2000){};
-//        driveDistance(12);
-//        while (drivingState != STATIONARY){};
-//        turnAngle(-30);
-//        while (drivingState != STATIONARY){};
-//        driveDistance(18);
-//        while (drivingState != STATIONARY) {};
-//        resetAngle();
-//        while (drivingState != STATIONARY) {};
-//        driveToCenter();
-//        while (drivingState != STATIONARY){};
-//        faceZone();
-//        while (drivingState != STATIONARY){};
-//        driveDistance(-100);
-//        while (drivingState != STATIONARY){};
-//        driveDistance(24);
-//        while (drivingState != STATIONARY){};
-//        while(1){};
-//        while (time < blah + 1000){};
-//        driveDistance(60);
-//        while (drivingState != STATIONARY){};
-//        driveDistance(-60);
-//        while (drivingState != STATIONARY){};
-
-//        if(!NU32USER) {
-//            resetAngleInZone();
-//            while (drivingState != STATIONARY){};
-//            blah = time;
-//            while (time < blah + 1000);
-//            driveDistance(24);
-//            while (drivingState != STATIONARY){};
-//            turnAngle(90);
-//            while (drivingState != STATIONARY){};
-//            resetAngleOnWall();
-//            while (drivingState != STATIONARY){};
-//        }
-
-//        if(!NU32USER) {
-//            driveDistance(24);
-//            while (drivingState != STATIONARY){};
-//        }
-
-    }
+        if (!NU32USER) {
+            //driveDistance(24,PLAID);
+            //turnAngle(90);
+            firstSweep2();
+            while (drivingState != STATIONARY){};
+            resetAngle();
+            while (drivingState != STATIONARY){};
+            driveToCenter();
+            while (drivingState != STATIONARY){};
+            driveToZone();
+            while (drivingState != STATIONARY){};
+            driveDistance(24,MEDIUM);
+            while (drivingState != STATIONARY){};
+            turnAngle(70);
+            while (drivingState != STATIONARY){};
+            resetAngleOnWall(RIGHT);
+            while (drivingState != STATIONARY){};
+            driveDistance(-6,PLAID);
+            while (drivingState != STATIONARY){};
+            resetAngle();
+        }
+}
     return 0;
 }
 
@@ -174,6 +154,10 @@ void __ISR(_TIMER_4_VECTOR, ipl5) Timer4ISR(void)
     static float overshootDegrees = 0;
 
     static long waitTime = 0;
+
+    static float Kpadj = 0;
+    static float Kdadj = 0;
+    static float Kiadj = 0;
     
     int reset = R_NONE;
 
@@ -191,26 +175,49 @@ void __ISR(_TIMER_4_VECTOR, ipl5) Timer4ISR(void)
     if (drivingState != STATIONARY) {
         // make all encoder readings positive
         if (drivingState == FORWARD || drivingState == RESET_ANGLE_WALL) {
+            Kpadj = 2;
+            Kt = 1;
             position1 = getEncoder1(FALSE);
             position2 = getEncoder2(FALSE);
         } else if (drivingState == BACKWARD || drivingState == RESET_ANGLE_ZONE) {
+            Kp = 26;
+            Kd = 115;
+            Kpadj = 6;
+            Kdadj = 7;
+            Kt = 1;
             position1 = -getEncoder1(FALSE);
-            position2 = -getEncoder2(FALSE);
+            position2 = -1.01*getEncoder2(FALSE);
         } else if (drivingState == CCW) {
+            Kpadj = 3;
+            Kdadj = 7;
+            Kp = 45;
+            Kd = 180;
+            Ki = 8;
+            Kt = 1;
             position1 = -getEncoder1(FALSE);
             position2 = getEncoder2(FALSE);
         } else if (drivingState == CW){
+            Kpadj = 2;
+            Kp = 45;
+            Kd = 180;
+            Ki = 8;
+            Kt = 1;
             position1 = getEncoder1(FALSE);
             position2 = -getEncoder2(FALSE);
         } else if (drivingState == COLOR_SWITCH) {
             if (lastColor == startingColor) {
-                //forward
+                Kpadj = 2;
+                Kt = 1;
                 position1 = getEncoder1(FALSE);
                 position2 = getEncoder2(FALSE);
             } else {
-                // backward
+                Kp = 26;
+                Kd = 115;
+                Kpadj = 6;
+                Kdadj = 7;
+                Kt = 1;
                 position1 = -getEncoder1(FALSE);
-                position2 = -getEncoder2(FALSE);
+                position2 = -1.01*getEncoder2(FALSE);
             }
         }
 
@@ -263,7 +270,7 @@ void __ISR(_TIMER_4_VECTOR, ipl5) Timer4ISR(void)
             e_int2 = -WINDUP;
 
         // calculate the PWM needed to maintain velocity
-        update1 = ((Kp*e1) + (Kd*e_dif1) - (Kt*e_tie) + (Ki*e_int1))/K0;      // left motor
+        update1 = (((Kp+Kpadj)*e1) + ((Kd+Kdadj)*e_dif1) - (Kt*e_tie) + ((Ki+Kiadj)*e_int1))/K0;      // left motor
         update2 = ((Kp*e2) + (Kd*e_dif2) + (Kt*e_tie) + (Ki*e_int2))/K0;      // right motor
 
         // do not exceed PWM bounds
@@ -364,7 +371,13 @@ void __ISR(_TIMER_4_VECTOR, ipl5) Timer4ISR(void)
     if (reset == R_STOP) {
         drivingState = STATIONARY;
         drivingMode = STATIONARY;
-        Kt = 12;
+        Kp = 30;
+        Kd = 120;
+        Ki = 5;
+        Kt = 10;
+        Kpadj = 0;
+        Kdadj = 0;
+        Kiadj = 0;
         terminalCounts1 = 0;
         terminalDegrees = 0;
         oldPos1 = 0;
@@ -621,6 +634,10 @@ void __ISR(_TIMER_5_VECTOR, ipl4) Timer5ISR(void)
 //    sprintf(message, "%d %d %d %d %d %d %d\r\n", ptDIF[0], ptDIF[1], ptDIF[2], ptDIF[3], ptDIF[4], ptDIF[5], ptDIF[6]);
 //    NU32_WriteUART1(message);
 
+//    char message[100];
+//    sprintf(message, "%d %d %d %d %d %d\r\n", startingColor, currentColor, currentColor1, currentColor2, ptDIF[0], ptDIF[1]);
+//    NU32_WriteUART1(message);
+
     // clear interrupt flag and exit
     mT5ClearIntFlag();
 } // end T5 Interrupt
@@ -655,7 +672,7 @@ void __ISR(_UART_1_VECTOR, ipl2) IntUart1Handler(void)
         if (data == 'g')
             FAN2 = !FAN2;
         if (data == 's')
-            sweepLaser();
+            sweepLaser(3);
 
         // Clear the RX interrupt Flag
         INTClearFlag(INT_SOURCE_UART_RX(UART1));

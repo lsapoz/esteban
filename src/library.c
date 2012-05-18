@@ -37,12 +37,12 @@ void initChangeNotification(void)
     //mPORTBSetPinsDigitalIn(BIT_0| BIT_1 | BIT_2 | BIT_3); // Make B0, B1, B2, B3 digital inputs
     mCNOpen(CN_ON, CN2_ENABLE | CN3_ENABLE | CN4_ENABLE | CN5_ENABLE, CN2_PULLUP_ENABLE | CN3_PULLUP_ENABLE | CN4_PULLUP_ENABLE | CN5_PULLUP_ENABLE);
 
-    PORTB;  // Clear any mismatches that may already be there by reading the correct ports
-
-    mCNSetIntPriority(3);    // set change notifcation priority
-    mCNSetIntSubPriority(2); // set change notification subpriority
-    mCNClearIntFlag();
-    mCNIntEnable(1);        // enable change notifcation interrupts
+//    PORTB;  // Clear any mismatches that may already be there by reading the correct ports
+//
+//    mCNSetIntPriority(3);    // set change notifcation priority
+//    mCNSetIntSubPriority(2); // set change notification subpriority
+//    mCNClearIntFlag();
+//    mCNIntEnable(1);        // enable change notifcation interrupts
 }
 
 // initalize the digital output pins 
@@ -238,20 +238,19 @@ void rotateTowerDoor(int servoPos)
     SetDCOC4PWM(servoPos);
 }
 
-int sweepLaser()
+int sweepLaser(int feet)
 {
     LASER_LIGHT = 0;
     long lastTime;
     int pwm = LASER_LEFT;
     //int arrsize = ((LASER_RIGHT-LASER_LEFT)/LASER_STEP);
-    //int ptON[arrsize], ptOFF[arrsize], ptDIF[arrsize];
     int ptON, ptOFF;
     int i = 0,  servoPos = 0, j = 0;
     long sum = 0;
     
-    lastTime = time;
-    SetDCOC5PWM(LASER_LEFT);
-    while (time < lastTime + 1000);
+//    lastTime = time;
+//    SetDCOC5PWM(LASER_LEFT);
+//    while (time < lastTime + 500);
     
     while (pwm != LASER_RIGHT) {
         ptOFF = ReadADC10(LASER_PT);
@@ -273,21 +272,18 @@ int sweepLaser()
         } else
             j++;
 
-        if (i+j > 50 && i > 15)
+        if (feet == 6 && i+j > 50 && i > 15)
             break;
-
-
-        //sprintf(NU32_RS232OutBuffer,"%d\n", ptDIF[i]/2);
-        //sprintf(NU32_RS232OutBuffer,"%d\n", response[i]*100);
-        //WriteString(UART1, NU32_RS232OutBuffer);
-        //i++;
+        else if (feet == 3 && i+j > 90 && i > 30)
+            break;
+        else if (feet == 2 && i+j > 130 && i > 40)
+            break;
     }
     if (i != 0)
         servoPos = sum / i;
     else
         servoPos = LASER_CENTER;
-    SetDCOC5PWM(servoPos);
-    LASER_LIGHT = 1;
+    SetDCOC5PWM(LASER_LEFT);
     return servoPos;
 
 }
@@ -431,6 +427,24 @@ void blowCubeInAndOut()
         }
 }
 
+void checkForCubes()
+{
+    int oldMode;
+    if (crateInMiddle == 1 && numCrates < 3) {
+        oldMode = drivingMode;
+        drivingMode = STATIONARY;
+        blowCubeIn();
+        drivingMode = oldMode;
+    }
+    if (crateInMiddle == 1 && numCrates == 3) {
+        oldMode = drivingMode;
+        drivingMode = STATIONARY;
+        blowCubeUp();
+        drivingMode = oldMode;
+        goBack = 1;
+    }
+}
+
 // Set the pwm duty cycle that controls motor speed
 void setMotorSpeed(int dutyCycle1, int dutyCycle2)
 {
@@ -461,13 +475,13 @@ void reverseDirection()
     setMotorSpeed(-1,-1); // alter pwm since direction reversed
 }
 
-void driveDistance(float inches)
+void driveDistance(float inches, int mode)
 {
     // reset encoders
     getEncoder1(TRUE);getEncoder2(TRUE);
     getEncoder1(TRUE);getEncoder2(TRUE);
 
-    drivingMode = FAST;
+    drivingMode = mode;
 
     if (inches >= 0) {
         DIR1 = 0;
@@ -546,14 +560,7 @@ void driveToCenter()
     drivingState = COLOR_SWITCH;
 }
 
-void faceZone()
-{
-    int thetaPWM = sweepLaser();
-    int theta = LASER_STEP_ANGLE*(thetaPWM - LASER_CENTER)/LASER_STEP;
-    turnAngle(theta);
-}
-
-void resetAngleOnWall()
+void resetAngleOnWall(int wall)
 {
     int leave = 1;
 
@@ -571,7 +578,7 @@ void resetAngleOnWall()
             int m1 = EN1;
             EN1 = 1;
             EN2 = 1;
-            driveDistance(-1.5);
+            driveDistance(-1.5, MEDIUM);
             while (drivingState != STATIONARY){};
             if (m1 == 0)
                 turnAngle(-15);
@@ -581,6 +588,11 @@ void resetAngleOnWall()
         } else
             leave = 0;
     }
+    if (wall == RIGHT)
+        globalAngle = 90;
+    else
+        globalAngle = -90;
+
 }
 
 void resetAngleInZone()
@@ -600,7 +612,7 @@ void resetAngleInZone()
             int m1 = EN1;
             EN1 = 1;
             EN2 = 1;
-            driveDistance(1.5);
+            driveDistance(1.5,MEDIUM);
             while (drivingState != STATIONARY){};
             if (m1 == 0)
                 turnAngle(15);
@@ -610,4 +622,106 @@ void resetAngleInZone()
         } else
             leave = 0;
     }
+    globalAngle = 0;
+}
+
+void driveToZone()
+{
+    int thetaPWM = sweepLaser(6);
+    int theta = LASER_STEP_ANGLE*(thetaPWM - LASER_CENTER)/LASER_STEP;
+    turnAngle(theta);
+    while(drivingState != STATIONARY){};
+    float dist = (-48.0/cos(DEGREES_TO_RADIANS(globalAngle)));
+
+    driveDistance(dist,PLAID);
+    while(drivingState != STATIONARY){};
+
+    thetaPWM = sweepLaser(2);
+    theta = LASER_STEP_ANGLE*(thetaPWM - LASER_CENTER)/LASER_STEP;
+    turnAngle(theta);
+    while(drivingState != STATIONARY){};
+    dist = (-14.0/cos(DEGREES_TO_RADIANS(globalAngle)));
+    
+    driveDistance(dist,PLAID);
+    while(drivingState != STATIONARY){};
+
+    resetAngle();
+    while(drivingState != STATIONARY){};
+    driveDistance(-12, PLAID);
+    while(drivingState != STATIONARY){};
+    resetAngleInZone();
+    blowCubesOut();
+    blowCubeInAndOut();
+    cubesDeposited += 4;
+    sweepRound++;
+    goBack = 0;         // clear the go back variable
+}
+
+// direct in path, two on middle line, one on left line
+void firstSweep1()
+{
+    driveDistance(68,PLAID);
+    //driveToCenter();
+    while(drivingState != STATIONARY)
+        checkForCubes();
+    turnAngle(90);
+    while(drivingState != STATIONARY){};
+    driveDistance(45,PLAID);
+    while(drivingState != STATIONARY)
+        checkForCubes();
+    turnAngle(90);
+    while(drivingState != STATIONARY){};
+    driveDistance(24,PLAID);
+    while(drivingState != STATIONARY)
+        checkForCubes();
+    turnAngle(90);
+    while(drivingState != STATIONARY){};
+    driveDistance(24,PLAID);
+    while(drivingState != STATIONARY)
+        checkForCubes();
+    turnAngle(90);
+    while(drivingState != STATIONARY){};
+//    driveDistance(-12,PLAID);
+//    while(drivingState != STATIONARY){};
+}
+
+void firstSweep2()
+{
+    driveDistance(55,PLAID);    // drive to middle line, our side
+    while(drivingState != STATIONARY) {
+        checkForCubes();
+        if (goBack == 1)
+            return;
+    }
+
+    turnAngle(90);              // turn 90 CW
+    while(drivingState != STATIONARY){};
+
+    driveDistance(42,PLAID);
+    while(drivingState != STATIONARY) {
+        checkForCubes();
+        if (goBack == 1)
+            return;
+    }
+
+    turnAngle(-90);              // turn 90 CCW
+    while(drivingState != STATIONARY){};
+
+    driveDistance(12,PLAID);
+    while(drivingState != STATIONARY) {
+        checkForCubes();
+        if (goBack == 1)
+            return;
+    }
+
+    turnAngle(-90);              // turn 90 CCW
+    while(drivingState != STATIONARY){};
+
+    driveDistance(36,PLAID);
+    while(drivingState != STATIONARY) {
+        checkForCubes();
+        if (goBack == 1)
+            return;
+    }
+        
 }

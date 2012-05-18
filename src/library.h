@@ -20,22 +20,27 @@ long getEncoder2(int reset);
 // Servo functions
 void rotateFanArm(int servoPos);
 void rotateTowerDoor(int servoPos);
-int sweepLaser();
+int sweepLaser(int feet);
 
 // Fan functions
 void blowCubeIn();
 void blowCubeUp();
 void blowCubesOut();
 void blowCubeInAndOut();
+void checkForCubes();
 
 // Driving Functions
 void setMotorSpeed(int dutyCycle1, int dutyCycle2);
 void reverseDirection();
-void driveDistance(float inches);
+void driveDistance(float inches, int mode);
 void turnAngle(int degrees);
 void resetAngle();
 void driveToCenter();
-void faceZone();
-void resetAngleOnWall();
+void resetAngleOnWall(int wall);    // STILL NEED TO ACTUALLY RESET GLOBAL ANGLE
 void resetAngleInZone();
+void driveToZone();
+
+// Strategy Functions
+void firstSweep1();
+void firstSweep2();
 #endif /* __LIBRARY_H_ */
