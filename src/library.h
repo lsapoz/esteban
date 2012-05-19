@@ -43,6 +43,7 @@ void resetAngleOnWall(int wall);
 void resetAngleInZone();
 void exitAndResetOnRight();
 void exitAndResetOnLeft();
+void exitAndResetOnRightAllWay();
 
 // Sweep Patterns
 void firstSweepPattern1();  // first in front, two on middle line, one on first line

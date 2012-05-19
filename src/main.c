@@ -102,6 +102,7 @@ int main(void)
             //exitAndResetOnLeft();
             //while (drivingState != STATIONARY){};
             secondSweep();
+            exitAndResetOnRightAllWay();
             //thirdSweep();
             while (drivingState != STATIONARY){};
         }
@@ -176,13 +177,13 @@ void __ISR(_TIMER_4_VECTOR, ipl5) Timer4ISR(void)
             position1 = getEncoder1(FALSE);
             position2 = getEncoder2(FALSE);
         } else if (drivingState == BACKWARD || drivingState == RESET_ANGLE_ZONE) {
-            Kp = 26;
+            Kp = 28;
             Kd = 115;
-            Kpadj = 6;
+            Kpadj = 4;
             Kdadj = 7;
             Kt = 1;
             position1 = -getEncoder1(FALSE);
-            position2 = -1.01*getEncoder2(FALSE);
+            position2 = -1.00*getEncoder2(FALSE);
         } else if (drivingState == CCW) {
             Kpadj = 3;
             Kdadj = 7;
@@ -199,7 +200,7 @@ void __ISR(_TIMER_4_VECTOR, ipl5) Timer4ISR(void)
             Ki = 8;
             Kt = 5;
             position1 = getEncoder1(FALSE);
-            position2 = -1.01*getEncoder2(FALSE);
+            position2 = -1.00*getEncoder2(FALSE);
         } else if (drivingState == COLOR_SWITCH) {
             if (lastColor == startingColor) {
                 Kpadj = 2;
@@ -207,13 +208,13 @@ void __ISR(_TIMER_4_VECTOR, ipl5) Timer4ISR(void)
                 position1 = getEncoder1(FALSE);
                 position2 = getEncoder2(FALSE);
             } else {
-                Kp = 26;
+                Kp = 28;
                 Kd = 115;
-                Kpadj = 6;
+                Kpadj = 4;
                 Kdadj = 7;
                 Kt = 1;
                 position1 = -getEncoder1(FALSE);
-                position2 = -1.01*getEncoder2(FALSE);
+                position2 = -1.00*getEncoder2(FALSE);
             }
         }
 
@@ -429,7 +430,7 @@ void __ISR(_TIMER_4_VECTOR, ipl5) Timer4ISR(void)
             position2 = -getEncoder2(FALSE);
         }
         overshootCounts = position1 - terminalCounts1;
-        overshootDegrees = (POSITION_TO_ANGLE(position1, position2) - stoppedDegrees)/min(max((terminalDegrees/109+1.375),1.65),2.2);
+        overshootDegrees = (POSITION_TO_ANGLE(position1, position2) - stoppedDegrees)/min(max((terminalDegrees/93+1.325),1.65),2.3);
 
         // change direction
         if (drivingState == FORWARD)

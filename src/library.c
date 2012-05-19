@@ -814,6 +814,24 @@ void exitAndResetOnLeft()
     //while (drivingState != STATIONARY){};
 }
 
+void exitAndResetOnRightAllWay()
+{
+    driveDistance(28,FAST);
+    while (drivingState != STATIONARY){};
+    turnAngle(60);
+    while (drivingState != STATIONARY){};
+    resetAngleOnWall(RIGHT);
+    while (drivingState != STATIONARY){};
+    driveDistance(-36,FAST);
+    while (drivingState != STATIONARY){};
+    resetAngle();
+    while (drivingState != STATIONARY){};
+    driveToCenter();
+    while (drivingState != STATIONARY){};
+//    driveDistance(-3,FAST);
+//    while (drivingState != STATIONARY){};
+}
+
 void firstSweepPattern1()
 {
     driveDistance(68,PLAID);    // drive to middle line, our side
