@@ -238,7 +238,7 @@ void rotateTowerDoor(int servoPos)
     SetDCOC4PWM(servoPos);
 }
 
-int sweepLaser(int feet)
+int sweepLaser(float feet)
 {
     LASER_LIGHT = 0;
     long lastTime;
@@ -277,6 +277,8 @@ int sweepLaser(int feet)
         else if (feet == 3 && i+j > 90 && i > 30)
             break;
         else if (feet == 2 && i+j > 130 && i > 40)
+            break;
+        else if (feet == 1.5 && i+j > 160 && i > 60)
             break;
     }
     if (i != 0)
@@ -357,9 +359,9 @@ void blowCubesOut()
         while (time < startTime+300){};   // wait 300 ms
         FAN2 = 0;   // turn the tower fan off
 
-        rotateTowerDoor(TOWER_DOOR_AJAR);
+        rotateTowerDoor(TOWER_DOOR_OPEN);
         startTime = time;
-        while (time < startTime+200){};   // wait 200 ms
+        while (time < startTime+1000){};   // wait 200 ms
         rotateTowerDoor(TOWER_DOOR_CLOSED);
 
         startTime = time;
@@ -427,37 +429,100 @@ void blowCubeInAndOut()
         }
 }
 
+//void checkForCubes()
+//{
+//    int oldMode = 0;
+//    float remaining = terminalCounts1 - position1;
+//    float additional = 0;
+//    long stopTime;
+//    if (crateInFront == 1) {
+//        oldMode = drivingMode;
+//        drivingMode = STATIONARY;
+//        remaining = terminalCounts1 - position1;
+//        terminalCounts1 = 0;
+//        stopTime = time;
+//        while (time < stopTime + 400){};
+//        while (crateInMiddle != 1) {
+//            driveDistance(1,MEDIUM);
+//            while (drivingState != STATIONARY) {};
+//            additional += 1;
+//        }
+//
+//        if (crateInMiddle == 1 && numCrates < 3) {
+//            terminalCounts1 = 0;
+//            blowCubeIn();
+//            drivingMode = oldMode;
+//            driveDistance((MM_TO_IN(COUNTS_TO_MM(remaining))),oldMode);
+//        } else {
+//            terminalCounts1 = 0;
+//            blowCubeUp();
+//            drivingMode = oldMode;
+//            goBack = 1;
+//        }
+//    }
+//}
+
+//void checkForCubes()
+//{
+//    int oldMode;
+//    int stopTime;
+//    if (crateInFront == 1 && numCrates < 3) {
+//        oldMode = drivingMode;
+//        drivingMode = STATIONARY;
+//
+//        // inch forward
+//        float remaining = terminalCounts1 - position1;
+//        terminalCounts1 = 0;
+//        stopTime = time;
+//        while (time < stopTime + 750){};
+//        while (crateInMiddle != 1) {
+//            driveDistance(1.5,MEDIUM);
+//            while(drivingState != STATIONARY){};
+//        }
+//
+//        blowCubeIn();
+//        driveDistance((MM_TO_IN(COUNTS_TO_MM(remaining))),oldMode);
+//        drivingMode = oldMode;
+//    }
+//    if (crateInFront == 1 && numCrates == 3) {
+//        oldMode = drivingMode;
+//        drivingMode = STATIONARY;
+//
+//        // inch forward
+//        float remaining = terminalCounts1 - position1;
+//        terminalCounts1 = 0;
+//        stopTime = time;
+//        while (time < stopTime + 750){};
+//        while (crateInMiddle != 1) {
+//            driveDistance(1.5,MEDIUM);
+//            while(drivingState != STATIONARY){};
+//        }
+//
+//
+//        blowCubeUp();
+//        driveDistance((MM_TO_IN(COUNTS_TO_MM(remaining))),oldMode);
+//        drivingMode = oldMode;
+//        goBack = 1;
+//    }
+//}
+
 void checkForCubes()
 {
     int oldMode;
-    int stopTime;
-    if (crateInMiddle == 1 && numCrates < 3) {
+    long lastTime;
+    if (crateInFront == 1 && numCrates < 3) {
         oldMode = drivingMode;
+        lastTime = time;
+        while (time < lastTime + 170){};
         drivingMode = STATIONARY;
-
-        // inch back
-        float remaining = terminalCounts1 - position1;
-        terminalCounts1 = 0;
-        stopTime = time;
-        while (time < stopTime + 250){};
-        driveDistance(-1.5,MEDIUM);
-        while(drivingState != STATIONARY){};
-        
         blowCubeIn();
-        driveDistance((MM_TO_IN(COUNTS_TO_MM(remaining))),oldMode);
         drivingMode = oldMode;
     }
-    if (crateInMiddle == 1 && numCrates == 3) {
+    if (crateInFront == 1 && numCrates == 3) {
         oldMode = drivingMode;
+        lastTime = time;
+        while (time < lastTime + 170){};
         drivingMode = STATIONARY;
-
-        // inch back
-        float remaining = terminalCounts1 - position1;
-        terminalCounts1 = 0;
-        driveDistance(-1,MEDIUM);
-        while(drivingState != STATIONARY){};
-        driveDistance((MM_TO_IN(COUNTS_TO_MM(remaining))),oldMode);
-
         blowCubeUp();
         drivingMode = oldMode;
         goBack = 1;
@@ -543,23 +608,6 @@ void turnAngle(int degrees)    // 3 = CCW, 4 = CW
     terminalDegrees = abs(degrees);
 }
 
-void resetAngle()
-{
-    int localAngle;
-    if (globalAngle < 0)
-        localAngle = 360 - ((-globalAngle) % 360);
-    else
-        localAngle = globalAngle % 360;
-    
-    if (localAngle < 180)
-        globalAngle = localAngle;
-    else
-        globalAngle = -(360-localAngle);
-
-    turnAngle(-globalAngle);
-
-}
-
 void driveToCenter()
 {
     // reset encoders
@@ -579,6 +627,88 @@ void driveToCenter()
     drivingState = COLOR_SWITCH;
 }
 
+void driveToZone()
+{
+    float remaining;
+    long lastTime;
+
+    int thetaPWM = sweepLaser(6);
+    int theta = LASER_STEP_ANGLE*(thetaPWM - LASER_CENTER)/LASER_STEP;
+    turnAngle(theta);
+    while(drivingState != STATIONARY){};
+    float dist = (-36.0/cos(DEGREES_TO_RADIANS(globalAngle)));
+
+    driveDistance(dist,FAST);
+    while(drivingState != STATIONARY){};
+
+    thetaPWM = sweepLaser(3);
+    theta = LASER_STEP_ANGLE*(thetaPWM - LASER_CENTER)/LASER_STEP;
+    turnAngle(theta);
+    while(drivingState != STATIONARY){};
+    dist = (-18.0/cos(DEGREES_TO_RADIANS(globalAngle)));
+    
+    driveDistance(dist,FAST);
+    while(drivingState != STATIONARY){};
+
+    thetaPWM = sweepLaser(1.5);
+    theta = LASER_STEP_ANGLE*(thetaPWM - LASER_CENTER)/LASER_STEP;
+    turnAngle(theta);
+    while(drivingState != STATIONARY){};
+    dist = (-18.0/cos(DEGREES_TO_RADIANS(globalAngle)));
+
+    driveDistance(dist,FAST);
+    while(drivingState != STATIONARY){};
+
+    driveDistance(-5,MEDIUM);
+    while(drivingState != STATIONARY){
+        if (collisionBottomLeft == 1) {
+            remaining = terminalCounts1 - position1;
+            terminalCounts1 = 0;
+            lastTime = time;
+            while (time < lastTime + 400);
+            turnAngle(-30);
+            while(drivingState != STATIONARY){};
+            driveDistance(-(MM_TO_IN(COUNTS_TO_MM(remaining))),PLAID);
+        } else if (collisionBottomRight == 1) {
+            remaining = terminalCounts1 - position1;
+            terminalCounts1 = 0;
+            lastTime = time;
+            while (time < lastTime + 400);
+            turnAngle(30);
+            while(drivingState != STATIONARY){};
+            driveDistance(-(MM_TO_IN(COUNTS_TO_MM(remaining))),PLAID);
+        }
+    }
+
+    //resetAngle();
+    //while(drivingState != STATIONARY){};
+    //driveDistance(-12, PLAID);
+    //while(drivingState != STATIONARY){};
+    resetAngleInZone();
+    blowCubesOut();
+    blowCubeInAndOut();
+    cubesDeposited += 4;
+    sweepRound++;
+    goBack = 0;         // clear the go back variable
+}
+
+void resetAngle()
+{
+    int localAngle;
+    if (globalAngle < 0)
+        localAngle = 360 - ((-globalAngle) % 360);
+    else
+        localAngle = globalAngle % 360;
+    
+    if (localAngle < 180)
+        globalAngle = localAngle;
+    else
+        globalAngle = -(360-localAngle);
+
+    turnAngle(-globalAngle);
+
+}
+
 void resetAngleOnWall(int wall)
 {
     int leave = 1;
@@ -590,7 +720,7 @@ void resetAngleOnWall(int wall)
 
         DIR1 = 0;
         DIR2 = 0;
-        drivingMode = MEDIUM;
+        drivingMode = FAST;
         drivingState = RESET_ANGLE_WALL;
         while (drivingState != STATIONARY){};
         if (EN1 != 1 || EN2 != 1) {
@@ -644,89 +774,83 @@ void resetAngleInZone()
     globalAngle = 0;
 }
 
-void driveToZone()
+void exitAndResetOnRight()
 {
-    int oldMode, oldState;
-    float oldCounts, currentCounts;
+    driveDistance(28,FAST);
+    while (drivingState != STATIONARY){};
+    turnAngle(60);
+    while (drivingState != STATIONARY){};
+    resetAngleOnWall(RIGHT);
+    while (drivingState != STATIONARY){};
+    driveDistance(-6,FAST);
+    while (drivingState != STATIONARY){};
+    resetAngle();
+    while (drivingState != STATIONARY){};
+    driveToCenter();
+    while (drivingState != STATIONARY){};
+    driveDistance(-3,FAST);
+    while (drivingState != STATIONARY){};
+}
 
-    int thetaPWM = sweepLaser(6);
-    int theta = LASER_STEP_ANGLE*(thetaPWM - LASER_CENTER)/LASER_STEP;
-    turnAngle(theta);
-    while(drivingState != STATIONARY){};
-    float dist = (-48.0/cos(DEGREES_TO_RADIANS(globalAngle)));
+void exitAndResetOnLeft()
+{
+    driveDistance(28,FAST);
+    while (drivingState != STATIONARY){};
+    turnAngle(-60);
+    while (drivingState != STATIONARY){};
+    resetAngleOnWall(LEFT);
+    while (drivingState != STATIONARY){};
+    driveDistance(-6,FAST);
+    while (drivingState != STATIONARY){};
+    resetAngle();
+    while (drivingState != STATIONARY){};
+    driveToCenter();
+    while (drivingState != STATIONARY){};
+    driveDistance(-3,FAST);
+    while (drivingState != STATIONARY){};
+}
 
-    driveDistance(dist,PLAID);
-    while(drivingState != STATIONARY){};
-
-    thetaPWM = sweepLaser(2);
-    theta = LASER_STEP_ANGLE*(thetaPWM - LASER_CENTER)/LASER_STEP;
-    turnAngle(theta);
-    while(drivingState != STATIONARY){};
-    //dist = (-14.0/cos(DEGREES_TO_RADIANS(globalAngle)));
-    dist = (-24.0/cos(DEGREES_TO_RADIANS(globalAngle)));
-    
-    driveDistance(dist,PLAID);
-    while(drivingState != STATIONARY){};
-
-    driveDistance(-8,MEDIUM);
-    while(drivingState != STATIONARY){
-        float remaining;
-        if (collisionBottomLeft == 1) {
-            remaining = terminalCounts1 - position1;
-            terminalCounts1 = 0;
-            turnAngle(-30);
-            while(drivingState != STATIONARY){};
-            driveDistance(-(MM_TO_IN(COUNTS_TO_MM(remaining))),PLAID);
-        } else if (collisionBottomRight == 1) {
-            remaining = terminalCounts1 - position1;
-            terminalCounts1 = 0;
-            turnAngle(30);
-            while(drivingState != STATIONARY){};
-            driveDistance(-(MM_TO_IN(COUNTS_TO_MM(remaining))),PLAID);
-        }
+void firstSweepPattern1()
+{
+    driveDistance(68,PLAID);    // drive to middle line, our side
+    while(drivingState != STATIONARY) {
+        checkForCubes();
+        if (goBack == 1)
+            return;
     }
 
-    //resetAngle();
-    //while(drivingState != STATIONARY){};
-    //driveDistance(-12, PLAID);
-    //while(drivingState != STATIONARY){};
-    resetAngleInZone();
-    blowCubesOut();
-    blowCubeInAndOut();
-    cubesDeposited += 4;
-    sweepRound++;
-    goBack = 0;         // clear the go back variable
+    turnAngle(90);              // turn 90 CW
+    while(drivingState != STATIONARY){};
+
+    driveDistance(42,PLAID);
+    while(drivingState != STATIONARY) {
+        checkForCubes();
+        if (goBack == 1)
+            return;
+    }
+
+    turnAngle(90);              // turn 90 CW
+    while(drivingState != STATIONARY){};
+
+    driveDistance(24,PLAID);
+    while(drivingState != STATIONARY) {
+        checkForCubes();
+        if (goBack == 1)
+            return;
+    }
+
+    turnAngle(90);              // turn 90 CW
+    while(drivingState != STATIONARY){};
+
+    driveDistance(42,PLAID);
+    while(drivingState != STATIONARY) {
+        checkForCubes();
+        if (goBack == 1)
+            return;
+    }
 }
 
-// direct in path, two on middle line, one on left line
-void firstSweep1()
-{
-    driveDistance(68,PLAID);
-    //driveToCenter();
-    while(drivingState != STATIONARY)
-        checkForCubes();
-    turnAngle(90);
-    while(drivingState != STATIONARY){};
-    driveDistance(45,PLAID);
-    while(drivingState != STATIONARY)
-        checkForCubes();
-    turnAngle(90);
-    while(drivingState != STATIONARY){};
-    driveDistance(24,PLAID);
-    while(drivingState != STATIONARY)
-        checkForCubes();
-    turnAngle(90);
-    while(drivingState != STATIONARY){};
-    driveDistance(24,PLAID);
-    while(drivingState != STATIONARY)
-        checkForCubes();
-    turnAngle(90);
-    while(drivingState != STATIONARY){};
-//    driveDistance(-12,PLAID);
-//    while(drivingState != STATIONARY){};
-}
-
-void firstSweep2()
+void firstSweepPattern2()
 {
     driveDistance(55,PLAID);    // drive to middle line, our side
     while(drivingState != STATIONARY) {
@@ -766,8 +890,11 @@ void firstSweep2()
     }   
 }
 
-void firstSweep3()
+void firstSweepPattern3()
 {
+    driveDistance(6,PLAID);
+    while(drivingState != STATIONARY){};
+
     turnAngle(27);
     while(drivingState != STATIONARY){};
 
@@ -778,3 +905,147 @@ void firstSweep3()
             return;
     }
 }
+
+void firstSweepPattern4()
+{
+    
+}
+
+void secondSweepPattern1()
+{
+    turnAngle(-90);
+    while(drivingState != STATIONARY){};
+
+    driveDistance(48,PLAID);
+    while(drivingState != STATIONARY) {
+        checkForCubes();
+        if (goBack == 1)
+            return;
+    }
+
+    turnAngle(-90);
+    while(drivingState != STATIONARY){};
+
+    driveDistance(24,PLAID);
+    while(drivingState != STATIONARY) {
+        checkForCubes();
+        if (goBack == 1)
+            return;
+    }
+
+    turnAngle(-90);
+    while(drivingState != STATIONARY){};
+
+    driveDistance(48,PLAID);
+    while(drivingState != STATIONARY) {
+        checkForCubes();
+        if (goBack == 1)
+            return;
+    }
+}
+
+void randomSweepPattern()
+{
+    int dist, ang, neg;
+    while (goBack == 0) {
+        dist = rand() % 36;
+        driveDistance(dist,PLAID);    // drive all the way
+        while(drivingState != STATIONARY) {
+            checkForCubes();
+            if (goBack == 1)
+                return;
+        }
+        ang = rand() % 90;
+        neg = rand() % 2;
+        if (neg == 0)
+            ang = -ang;
+        turnAngle(ang);
+        while(drivingState != STATIONARY){};
+    }
+}
+
+void wallToWallSweepPattern()
+{
+    int i = 0;
+        while (goBack == 0) {
+            driveDistance(72,PLAID);
+            while(drivingState != STATIONARY){
+                checkForCubes();
+                if (goBack == 1)
+                        return;
+                if (collisionTopLeft == 1 || collisionTopRight == 1) {
+                    drivingState = STATIONARY;
+                }
+            }
+
+            driveDistance(-3,PLAID);
+            while(drivingState != STATIONARY){};
+
+            if (i % 2 == 0)
+                turnAngle(-90);
+            else
+                turnAngle(90);
+            while(drivingState != STATIONARY){};
+
+            driveDistance(8,PLAID);
+            while(drivingState != STATIONARY){
+                checkForCubes();
+                if (goBack == 1)
+                        return;
+                if (collisionTopLeft == 1 || collisionTopRight == 1) {
+                    drivingState = STATIONARY;
+                }
+            }
+
+            if (i % 2 == 0)
+                turnAngle(-90);
+            else
+                turnAngle(90);
+            while(drivingState != STATIONARY){};
+
+            i++;
+    }
+}
+
+void firstSweep()
+{
+    firstSweepPattern2();
+    while (drivingState != STATIONARY){};
+    resetAngle();
+    while (drivingState != STATIONARY){};
+    driveToCenter();
+    while (drivingState != STATIONARY){};
+    driveToZone();
+    while (drivingState != STATIONARY){};
+    exitAndResetOnRight();
+    while (drivingState != STATIONARY){};
+}
+
+void secondSweep()
+{
+    secondSweepPattern1();
+    while (drivingState != STATIONARY){};
+    resetAngle();
+    while (drivingState != STATIONARY){};
+    driveToCenter();
+    while (drivingState != STATIONARY){};
+    driveToZone();
+    while (drivingState != STATIONARY){};
+    exitAndResetOnRight();
+    while (drivingState != STATIONARY){};
+}
+
+void randomSweep()
+{
+    randomSweepPattern();
+    while (drivingState != STATIONARY){};
+    resetAngle();
+    while (drivingState != STATIONARY){};
+    driveToCenter();
+    while (drivingState != STATIONARY){};
+    driveToZone();
+    while (drivingState != STATIONARY){};
+    exitAndResetOnRight();
+    while (drivingState != STATIONARY){};
+}
+

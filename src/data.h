@@ -8,9 +8,10 @@
 #define MAX_PWM 1250                // 100% duty cycle
 #define WHEEL_RADIUS 45             // 45 mm
 #define WHEELBASE 174.82            // 174.82 mm
-#define COLOR_BASE 150               // 150 mm
+#define COLOR_BASE 150              // 150 mm
 #define INERTIA_COUNTS 500          // extra counts recorded after motors stop
-#define LEFT_WHEEL_ADJUST 0.99      // leftwheel adjustment constant
+#define LEFT_WHEEL_ADJUST 0.999      // leftwheel adjustment constant
+#define TIME_ALERT 150000           // 150 seconds/ 2.5 minutes
 
 // Formulas
 #define COUNTS_TO_MM(c) (2*PI*WHEEL_RADIUS*((float)c/COUNTS_PER_REVOLUTION))

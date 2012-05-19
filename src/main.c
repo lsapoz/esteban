@@ -34,7 +34,7 @@ int main(void)
     Kp = 30;
     Kd = 120;
     Ki = 5;
-    Kt = 10;
+    Kt = 12;
     K0 = 100;
 
     // init everything for the LCD
@@ -58,7 +58,7 @@ int main(void)
     initTimer5Interrupt();
 
     // print to the LCD
-    sprintf(LCD_Out_Buffer,"Esteban DC");
+    sprintf(LCD_Out_Buffer,"Esteban");
     LCDWriteString(LCD_Out_Buffer, 1, 1);
 
     // initialize UARTS and interrupts
@@ -71,44 +71,6 @@ int main(void)
 
     long blah = time;
     while(1) {
-//        if (crateInMiddle == 1 && numCrates < 3) {
-//            blah = time;
-//            while (time < blah + 500){};
-//            blowCubeIn();
-//        }
-//        if (crateInMiddle == 1 && numCrates == 3) {
-//            blah = time;
-//            while (time < blah+1000){};
-//            blowCubeUp();
-//            blah = time;
-//            while (time < blah+500){};
-//            blowCubesOut();
-//            blah = time;
-//            while (time < blah+500){};
-//            blowCubeInAndOut();
-//        }
-
-//        if (!NU32USER) {
-//            //driveDistance(24,PLAID);
-//            //turnAngle(90);
-//            firstSweep2();
-//            while (drivingState != STATIONARY){};
-//            resetAngle();
-//            while (drivingState != STATIONARY){};
-//            driveToCenter();
-//            while (drivingState != STATIONARY){};
-//            driveToZone();
-//            while (drivingState != STATIONARY){};
-//            driveDistance(24,MEDIUM);
-//            while (drivingState != STATIONARY){};
-//            turnAngle(70);
-//            while (drivingState != STATIONARY){};
-//            resetAngleOnWall(RIGHT);
-//            while (drivingState != STATIONARY){};
-//            driveDistance(-6,PLAID);
-//            while (drivingState != STATIONARY){};
-//            resetAngle();
-//        }
         char message[100];
 //        if (!NU32USER) {
 //            driveDistance(-12,PLAID);
@@ -134,22 +96,9 @@ int main(void)
 //        }
 
         if (!NU32USER) {
-//            driveDistance(24,PLAID);    // drive to middle line, our side
-//            while(drivingState != STATIONARY) {
-//                checkForCubes();
-//                if (goBack == 1)
-//                    return;
-//            }
-            firstSweep3();
-            while (drivingState != STATIONARY){};
-            resetAngle();
-            while (drivingState != STATIONARY){};
-            driveToCenter();
-            while (drivingState != STATIONARY){};
-            driveToZone();
-            while (drivingState != STATIONARY){};
-            
-            //driveToCenter();
+            blah = time;
+            while (time < blah + 1000){};
+            firstSweep();
             while (drivingState != STATIONARY){};
         }
 }
@@ -250,7 +199,7 @@ void __ISR(_TIMER_4_VECTOR, ipl5) Timer4ISR(void)
         } else if (drivingState == COLOR_SWITCH) {
             if (lastColor == startingColor) {
                 Kpadj = 2;
-                Kt = 1;
+                Kdadj = 1;
                 position1 = getEncoder1(FALSE);
                 position2 = getEncoder2(FALSE);
             } else {
@@ -285,7 +234,7 @@ void __ISR(_TIMER_4_VECTOR, ipl5) Timer4ISR(void)
         oldPos2 = position2;
 
         // the tie term keeps track of the difference between the motors
-        e_tie = position1 - position2;
+        e_tie = vel1 - vel2;
 
 
         // the proportional error term
@@ -311,6 +260,9 @@ void __ISR(_TIMER_4_VECTOR, ipl5) Timer4ISR(void)
             e_int2 = WINDUP;
         if (e_int2 < -WINDUP)
             e_int2 = -WINDUP;
+
+        if (((e1-e2) > 300))
+            e1 = e2 + 200;
 
         // calculate the PWM needed to maintain velocity
         update1 = (((Kp+Kpadj)*e1) + ((Kd+Kdadj)*e_dif1) - (Kt*e_tie) + ((Ki+Kiadj)*e_int1))/K0;      // left motor
@@ -355,13 +307,13 @@ void __ISR(_TIMER_4_VECTOR, ipl5) Timer4ISR(void)
                     EN1 = 0;
                     Kt = 0;
                     waitTime = time;
-                    drivingMode = FAST;
+                    drivingMode = PLAID;
                 }
                 if (collisionTopRight == 1 && EN2 == 1) {
                     EN2 = 0;
                     Kt = 0;
                     waitTime = time;
-                    drivingMode = FAST;
+                    drivingMode = PLAID;
                 }
                 if (EN1 == 0 && EN2 == 0) {
                      reset = R_STOP;
@@ -375,13 +327,13 @@ void __ISR(_TIMER_4_VECTOR, ipl5) Timer4ISR(void)
                     EN1 = 0;
                     Kt = 0;
                     waitTime = time;
-                    drivingMode = FAST;
+                    drivingMode = PLAID;
                 }
                 if (collisionBottomRight == 1 && EN2 == 1) {
                     EN2 = 0;
                     Kt = 0;
                     waitTime = time;
-                    drivingMode = FAST;
+                    drivingMode = PLAID;
                 }
                 if (EN1 == 0 && EN2 == 0) {
                      reset = R_STOP;

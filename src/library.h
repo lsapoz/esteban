@@ -20,7 +20,7 @@ long getEncoder2(int reset);
 // Servo functions
 void rotateFanArm(int servoPos);
 void rotateTowerDoor(int servoPos);
-int sweepLaser(int feet);
+int sweepLaser(float feet);
 
 // Fan functions
 void blowCubeIn();
@@ -34,14 +34,29 @@ void setMotorSpeed(int dutyCycle1, int dutyCycle2);
 void reverseDirection();
 void driveDistance(float inches, int mode);
 void turnAngle(int degrees);
-void resetAngle();
+
 void driveToCenter();
-void resetAngleOnWall(int wall);    // STILL NEED TO ACTUALLY RESET GLOBAL ANGLE
-void resetAngleInZone();
 void driveToZone();
 
-// Strategy Functions
-void firstSweep1();
-void firstSweep2();
-void firstSweep3();
+void resetAngle();
+void resetAngleOnWall(int wall);
+void resetAngleInZone();
+void exitAndResetOnRight();
+void exitAndResetOnLeft();
+
+// Sweep Patterns
+void firstSweepPattern1();  // first in front, two on middle line, one on first line
+void firstSweepPattern2();  // first in front, three on second line
+void firstSweepPattern3();  // the four diaganals
+
+void secondSweepPattern1();
+
+void randomSweepPattern();
+void wallToWallSweepPattern();
+
+// Stringing it all together
+void firstSweep();
+void secondSweep();
+void randomSweep();
+
 #endif /* __LIBRARY_H_ */
