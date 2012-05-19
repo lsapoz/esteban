@@ -1012,7 +1012,7 @@ void firstSweepPattern5()
     waitTime = time;
     while (time < waitTime + 250) {}
 
-    turnAngle(-30);              // turn 90 CCW
+    turnAngle(-29);              // turn 90 CCW
     while(drivingState != STATIONARY){};
 
     waitTime = time;
@@ -1096,7 +1096,7 @@ void secondSweepPattern3()
     waitTime = time;
     while (time < waitTime + 250) {};
 
-    turnAngle(-28);
+    turnAngle(-27);
     while(drivingState != STATIONARY){};
 
     waitTime = time;

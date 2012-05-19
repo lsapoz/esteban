@@ -58,7 +58,7 @@ int main(void)
     initTimer5Interrupt();
 
     // print to the LCD
-    sprintf(LCD_Out_Buffer,"Esteban");
+    sprintf(LCD_Out_Buffer,"Esteban 1");
     LCDWriteString(LCD_Out_Buffer, 1, 1);
 
     // initialize UARTS and interrupts
@@ -99,11 +99,8 @@ int main(void)
             blah = time;
             while (time < blah + 1000){};
             firstSweep();
-            //exitAndResetOnLeft();
-            //while (drivingState != STATIONARY){};
             secondSweep();
             exitAndResetOnRightAllWay();
-            //thirdSweep();
             while (drivingState != STATIONARY){};
         }
 }
