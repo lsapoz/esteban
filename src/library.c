@@ -804,14 +804,14 @@ void exitAndResetOnLeft()
     while (drivingState != STATIONARY){};
     resetAngleOnWall(LEFT);
     while (drivingState != STATIONARY){};
-    driveDistance(-6,FAST);
+    driveDistance(-2,FAST);
     while (drivingState != STATIONARY){};
     resetAngle();
     while (drivingState != STATIONARY){};
-    driveToCenter();
-    while (drivingState != STATIONARY){};
-    driveDistance(-3,FAST);
-    while (drivingState != STATIONARY){};
+    //driveToCenter();
+    //while (drivingState != STATIONARY){};
+    //driveDistance(-3,FAST);
+    //while (drivingState != STATIONARY){};
 }
 
 void firstSweepPattern1()
@@ -1180,9 +1180,9 @@ void secondSweep()
     driveToCenter();
     while (drivingState != STATIONARY){};
     driveToZone();
-    while (drivingState != STATIONARY){};
-    exitAndResetOnRight();
-    while (drivingState != STATIONARY){};
+    //while (drivingState != STATIONARY){};
+    //exitAndResetOnLeft();
+    //while (drivingState != STATIONARY){};
 }
 
 void thirdSweep()

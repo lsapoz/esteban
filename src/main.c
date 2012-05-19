@@ -99,7 +99,7 @@ int main(void)
             blah = time;
             while (time < blah + 1000){};
             firstSweep();
-            //exitAndResetOnRight();
+            //exitAndResetOnLeft();
             //while (drivingState != STATIONARY){};
             secondSweep();
             //thirdSweep();
