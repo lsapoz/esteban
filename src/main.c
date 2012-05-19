@@ -99,7 +99,10 @@ int main(void)
             blah = time;
             while (time < blah + 1000){};
             firstSweep();
+            //exitAndResetOnRight();
+            //while (drivingState != STATIONARY){};
             secondSweep();
+            //thirdSweep();
             while (drivingState != STATIONARY){};
         }
 }
@@ -426,7 +429,7 @@ void __ISR(_TIMER_4_VECTOR, ipl5) Timer4ISR(void)
             position2 = -getEncoder2(FALSE);
         }
         overshootCounts = position1 - terminalCounts1;
-        overshootDegrees = (POSITION_TO_ANGLE(position1, position2) - stoppedDegrees)/min(max((terminalDegrees/93+1.33),1.65),2.3);
+        overshootDegrees = (POSITION_TO_ANGLE(position1, position2) - stoppedDegrees)/min(max((terminalDegrees/109+1.375),1.65),2.2);
 
         // change direction
         if (drivingState == FORWARD)

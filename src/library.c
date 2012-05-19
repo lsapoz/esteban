@@ -274,8 +274,8 @@ int sweepLaser(float feet)
 
         if (feet == 6 && i+j > 50 && i > 15)
             break;
-//        else if (feet == 3 && i+j > 90 && i > 30)
-//            break;
+        else if (feet == 3 && i+j > 100 && i > 30)
+            break;
 //        else if (feet == 2 && i+j > 130 && i > 40)
 //            break;
 //        else if (feet == 1.5 && i+j > 160 && i > 60)
@@ -522,9 +522,6 @@ void checkForCubes()
         oldMode = drivingMode;
         lastTime = time;
         while (time < lastTime + 170){};
-            // print to the computer
-    sprintf(NU32_RS232OutBuffer,"hi\r\n");
-    NU32_WriteUART1(NU32_RS232OutBuffer);
         drivingMode = STATIONARY;
         blowCubeUp();
         drivingMode = oldMode;
@@ -789,7 +786,7 @@ void exitAndResetOnRight()
     while (drivingState != STATIONARY){};
     resetAngleOnWall(RIGHT);
     while (drivingState != STATIONARY){};
-    driveDistance(-8,FAST);
+    driveDistance(-9,FAST);
     while (drivingState != STATIONARY){};
     resetAngle();
     while (drivingState != STATIONARY){};
@@ -1050,19 +1047,49 @@ void secondSweepPattern2()
     int oldMode;
     long lastTime;
 
-    driveDistance(24,PLAID);    // drive to middle line, our side
+    driveDistance(18,PLAID);  
     while(drivingState != STATIONARY) {
         if (((crateInFront == 1)||(!crateInFront&&crateInMiddle)) && numCrates < 3) {
             oldMode = drivingMode;
             lastTime = time;
             while (time < lastTime + 170){};
-            terminalCounts1 = 0;
             drivingMode = STATIONARY;
             blowCubeIn();
+            drivingMode = STATIONARY;
+            break;
         }
     }
+}
 
+void secondSweepPattern3()
+{
+    long waitTime;
+    int oldMode;
+    long lastTime;
 
+    waitTime = time;
+    while (time < waitTime + 250) {};
+
+    //drivingMode = PLAID;
+
+    driveDistance(-1,PLAID);
+    while(drivingState != STATIONARY) {};
+
+    waitTime = time;
+    while (time < waitTime + 250) {};
+
+    turnAngle(-28);
+    while(drivingState != STATIONARY){};
+
+    waitTime = time;
+    while (time < waitTime + 250) {};
+
+    driveDistance(55,PLAID);
+    while(drivingState != STATIONARY) {
+        checkForCubes();
+        if (goBack == 1)
+            return;
+    }
 }
 
 void randomSweepPattern()
@@ -1145,17 +1172,22 @@ void firstSweep()
 void secondSweep()
 {
     secondSweepPattern2();
+    //while (drivingState != STATIONARY){};
+    secondSweepPattern3();
     while (drivingState != STATIONARY){};
-    //resetAngle();
-    //while (drivingState != STATIONARY){};
-    //driveToCenter();
-    //while (drivingState != STATIONARY){};
-    //driveToZone();
-    //while (drivingState != STATIONARY){};
+    resetAngle();
+    while (drivingState != STATIONARY){};
+    driveToCenter();
+    while (drivingState != STATIONARY){};
+    driveToZone();
+    while (drivingState != STATIONARY){};
+    exitAndResetOnRight();
+    while (drivingState != STATIONARY){};
+}
 
+void thirdSweep()
+{
 
-    //exitAndResetOnRight();
-    //while (drivingState != STATIONARY){};
 }
 
 void randomSweep()

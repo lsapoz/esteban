@@ -53,6 +53,7 @@ void firstSweepPattern5();  // first four THIS ONE
 
 void secondSweepPattern1();
 void secondSweepPattern2(); // THIS ONE
+void secondSweepPattern3(); // AND THIS ONE
 
 void randomSweepPattern();
 void wallToWallSweepPattern();
@@ -60,6 +61,7 @@ void wallToWallSweepPattern();
 // Stringing it all together
 void firstSweep();
 void secondSweep();
+void thirdSweep();
 void randomSweep();
 
 #endif /* __LIBRARY_H_ */
