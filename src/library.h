@@ -48,8 +48,11 @@ void exitAndResetOnLeft();
 void firstSweepPattern1();  // first in front, two on middle line, one on first line
 void firstSweepPattern2();  // first in front, three on second line
 void firstSweepPattern3();  // the four diaganals
+void firstSweepPattern4();  // facing on the wall
+void firstSweepPattern5();  // first four THIS ONE
 
 void secondSweepPattern1();
+void secondSweepPattern2(); // THIS ONE
 
 void randomSweepPattern();
 void wallToWallSweepPattern();

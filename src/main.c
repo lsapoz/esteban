@@ -99,6 +99,7 @@ int main(void)
             blah = time;
             while (time < blah + 1000){};
             firstSweep();
+            secondSweep();
             while (drivingState != STATIONARY){};
         }
 }
@@ -185,17 +186,17 @@ void __ISR(_TIMER_4_VECTOR, ipl5) Timer4ISR(void)
             Kp = 45;
             Kd = 180;
             Ki = 8;
-            Kt = 1;
+            Kt = 5;
             position1 = -getEncoder1(FALSE);
             position2 = getEncoder2(FALSE);
         } else if (drivingState == CW){
-            Kpadj = 2;
+            Kpadj = 3;
             Kp = 45;
             Kd = 180;
             Ki = 8;
-            Kt = 1;
+            Kt = 5;
             position1 = getEncoder1(FALSE);
-            position2 = -getEncoder2(FALSE);
+            position2 = -1.01*getEncoder2(FALSE);
         } else if (drivingState == COLOR_SWITCH) {
             if (lastColor == startingColor) {
                 Kpadj = 2;
@@ -425,7 +426,7 @@ void __ISR(_TIMER_4_VECTOR, ipl5) Timer4ISR(void)
             position2 = -getEncoder2(FALSE);
         }
         overshootCounts = position1 - terminalCounts1;
-        overshootDegrees = (POSITION_TO_ANGLE(position1, position2) - stoppedDegrees)/min(max((terminalDegrees/150+1.45),1.65),2.00);
+        overshootDegrees = (POSITION_TO_ANGLE(position1, position2) - stoppedDegrees)/min(max((terminalDegrees/93+1.33),1.65),2.3);
 
         // change direction
         if (drivingState == FORWARD)
